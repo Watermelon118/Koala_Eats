@@ -240,9 +240,9 @@ Response `200`:
 
 #### POST `/api/customer/orders`
 
-状态：`Planned`
+状态：`Mocked`
 
-用途：用户端提交订单。当前前端只有“去结算”按钮，尚未进入订单提交页。
+用途：用户端提交订单。订单创建后进入待支付状态。
 
 Request:
 
@@ -257,6 +257,62 @@ Request:
     }
   ],
   "remark": "少盐"
+}
+```
+
+#### POST `/api/customer/orders/{orderId}/mock-payment`
+
+状态：`Mocked`
+
+用途：用户端模拟支付。真实支付暂不接入，点击模拟支付后订单进入已支付并继续流转。
+
+Request:
+
+```json
+{
+  "paymentMethod": "MockBalance"
+}
+```
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": {
+    "orderId": "order-1001",
+    "status": "Paid",
+    "paidAtUtc": "2026-06-11T02:00:00Z"
+  }
+}
+```
+
+#### GET `/api/customer/orders/{orderId}`
+
+状态：`Mocked`
+
+用途：用户端查看订单详情、订单进度、骑手位置和预计送达时间。
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": {
+    "id": "KE-2048",
+    "storeId": "store-koala-bowl",
+    "storeName": "考拉能量饭",
+    "status": "Delivering",
+    "statusText": "骑手配送中",
+    "estimatedArrivalMinutes": 12,
+    "riderName": "Liam",
+    "riderLocation": {
+      "latitude": -36.8482,
+      "longitude": 174.764
+    }
+  }
 }
 ```
 
@@ -332,6 +388,34 @@ Response `200`:
 }
 ```
 
+### PATCH `/api/merchant/orders/{orderId}/status`
+
+状态：`Mocked`
+
+用途：商家接单、拒单、更新备餐和待取餐状态。
+
+Request:
+
+```json
+{
+  "status": "Preparing"
+}
+```
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": {
+    "id": "KE-2048",
+    "status": "Preparing",
+    "statusText": "备餐中"
+  }
+}
+```
+
 ### GET `/api/merchant/menu-items`
 
 状态：`Mocked`
@@ -353,6 +437,67 @@ Response `200`:
       "tag": "招牌"
     }
   ]
+}
+```
+
+### PATCH `/api/merchant/menu-items/{menuItemId}`
+
+状态：`Mocked`
+
+用途：商家修改菜品上架状态、库存、价格等信息。
+
+Request:
+
+```json
+{
+  "isAvailable": true,
+  "stock": 38,
+  "price": 16.8
+}
+```
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": {
+    "id": "bowl-teriyaki",
+    "isAvailable": true,
+    "stock": 38,
+    "price": 16.8
+  }
+}
+```
+
+### PATCH `/api/merchant/store-profile`
+
+状态：`Mocked`
+
+用途：商家维护店铺资料、营业状态、营业时间、公告、配送范围和位置。
+
+Request:
+
+```json
+{
+  "isOpen": true,
+  "openingHours": "10:30 - 21:30",
+  "announcement": "午高峰预计出餐 12 分钟",
+  "deliveryRadiusKm": 4.5
+}
+```
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": {
+    "id": "store-koala-bowl",
+    "isOpen": true
+  }
 }
 ```
 
@@ -404,6 +549,69 @@ Response `200`:
 }
 ```
 
+### PATCH `/api/rider/deliveries/{deliveryId}/status`
+
+状态：`Mocked`
+
+用途：骑手接单、到店、取餐、配送中、送达的状态流转。
+
+Request:
+
+```json
+{
+  "status": "PickedUp",
+  "currentLocation": {
+    "latitude": -36.8482,
+    "longitude": 174.764
+  }
+}
+```
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": {
+    "id": "D-801",
+    "status": "PickedUp",
+    "statusText": "已取餐"
+  }
+}
+```
+
+### POST `/api/rider/location-reports`
+
+状态：`Mocked`
+
+用途：骑手上报当前位置，用于用户端订单地图追踪。
+
+Request:
+
+```json
+{
+  "deliveryId": "D-801",
+  "currentLocation": {
+    "latitude": -36.8482,
+    "longitude": 174.764
+  },
+  "reportedAtUtc": "2026-06-11T02:00:00Z"
+}
+```
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": {
+    "accepted": true
+  }
+}
+```
+
 ## Admin
 
 ### GET `/api/admin/dashboard`
@@ -448,5 +656,166 @@ Response `200`:
       "severity": "warning"
     }
   ]
+}
+```
+
+### GET `/api/admin/merchant-applications`
+
+状态：`Mocked`
+
+用途：管理端查看商家入驻审核列表。
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": [
+    {
+      "id": "MA-101",
+      "storeName": "海港寿司",
+      "applicantName": "Haruto",
+      "category": "日韩料理",
+      "address": "9 Customs Street East",
+      "status": "Pending"
+    }
+  ]
+}
+```
+
+### PATCH `/api/admin/merchant-applications/{applicationId}/status`
+
+状态：`Mocked`
+
+用途：管理端通过或拒绝商家入驻审核。
+
+Request:
+
+```json
+{
+  "status": "Approved"
+}
+```
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": {
+    "id": "MA-101",
+    "status": "Approved"
+  }
+}
+```
+
+### GET `/api/admin/orders`
+
+状态：`Mocked`
+
+用途：管理端查看订单列表和异常订单。
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": [
+    {
+      "id": "KE-2047",
+      "storeName": "金袋汉堡",
+      "customerName": "Mia",
+      "riderName": "未分配",
+      "status": "派单超时",
+      "riskLevel": "urgent"
+    }
+  ]
+}
+```
+
+### PATCH `/api/admin/orders/{orderId}/assign-rider`
+
+状态：`Mocked`
+
+用途：自动派单失败时，管理端人工指定骑手。
+
+Request:
+
+```json
+{
+  "riderId": "R-3001"
+}
+```
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": {
+    "id": "KE-2047",
+    "riderName": "Liam",
+    "status": "已人工派单"
+  }
+}
+```
+
+### PATCH `/api/admin/accounts/{accountId}/status`
+
+状态：`Mocked`
+
+用途：管理端冻结或解冻用户、商家、骑手账号。
+
+Request:
+
+```json
+{
+  "status": "Frozen"
+}
+```
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": {
+    "id": "R-3001",
+    "status": "Frozen"
+  }
+}
+```
+
+### PATCH `/api/admin/delivery-areas/{deliveryAreaId}`
+
+状态：`Mocked`
+
+用途：管理端维护配送区域、起步配送费和启停状态。
+
+Request:
+
+```json
+{
+  "isEnabled": true,
+  "baseFee": 2.99,
+  "radiusKm": 5
+}
+```
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": {
+    "id": "DA-1",
+    "isEnabled": true
+  }
 }
 ```
