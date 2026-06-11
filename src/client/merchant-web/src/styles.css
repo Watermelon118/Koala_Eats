@@ -11,25 +11,71 @@
   margin: 8px 0;
 }
 
+.hero-actions,
+.action-row {
+  display: flex;
+  gap: 10px;
+}
+
+.status-toggle {
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.status-toggle.open {
+  background: var(--brand);
+  color: var(--ink);
+}
+
+.merchant-tabs {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.merchant-tabs button {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  cursor: pointer;
+  font-weight: 900;
+  min-height: 44px;
+}
+
+.merchant-tabs button.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #ffffff;
+}
+
 .merchant-hero span,
 .order-card span,
 .dish-list span,
 .location-panel span,
-.location-panel p {
+.location-panel p,
+.prep-panel span,
+.prep-panel p,
+.detail-stack span,
+.order-detail .panel-title span,
+.store-settings label {
   color: var(--muted);
   font-size: 13px;
 }
 
 .merchant-grid {
+  align-items: start;
   display: grid;
   gap: 18px;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
 }
 
 .panel-title,
 .order-footer,
 .dish-list article,
-.location-panel {
+.location-panel,
+.prep-panel,
+.order-items div {
   align-items: center;
   display: flex;
   justify-content: space-between;
@@ -44,27 +90,77 @@
 }
 
 .order-list,
-.dish-list {
+.dish-list,
+.detail-stack,
+.order-items,
+.menu-management,
+.store-settings {
   display: grid;
   gap: 12px;
-  margin-top: 14px;
 }
 
 .order-card,
-.dish-list article {
+.dish-list article,
+.detail-stack article,
+.order-items div {
   background: var(--surface-strong);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 14px;
 }
 
+.order-card {
+  cursor: pointer;
+  text-align: left;
+}
+
+.order-card.selected {
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 2px var(--brand);
+}
+
 .order-card p {
   margin: 10px 0;
 }
 
+.order-detail {
+  position: sticky;
+  top: 18px;
+}
+
+.order-items {
+  border-top: 1px solid var(--border);
+  margin-top: 14px;
+  padding-top: 14px;
+}
+
+.action-row {
+  border-top: 1px solid var(--border);
+  margin-top: 14px;
+  padding-top: 14px;
+}
+
+.action-row button {
+  align-items: center;
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  justify-content: center;
+}
+
+.danger-button {
+  background: #ffe0d6;
+  border: 0;
+  border-radius: 8px;
+  color: var(--danger);
+  cursor: pointer;
+  font-weight: 900;
+  min-height: 46px;
+  padding: 0 16px;
+}
+
 .dish-icon {
   align-items: center;
-  background: var(--brand-soft);
   border-radius: 8px;
   display: flex;
   height: 42px;
@@ -72,19 +168,88 @@
   width: 42px;
 }
 
-.location-panel {
-  grid-column: 1 / -1;
-  justify-content: flex-start;
-  min-height: 94px;
+.menu-management section {
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 12px;
+  padding-top: 14px;
 }
 
-@media (max-width: 900px) {
+.stock-control {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.stock-control button,
+.icon-toggle {
+  align-items: center;
+  background: var(--brand);
+  border: 0;
+  border-radius: 999px;
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  height: 30px;
+  justify-content: center;
+  width: 30px;
+}
+
+.icon-toggle {
+  background: transparent;
+  width: auto;
+}
+
+.location-panel,
+.prep-panel {
+  justify-content: flex-start;
+  min-height: 112px;
+}
+
+.store-settings label {
+  display: grid;
+  gap: 6px;
+  font-weight: 800;
+}
+
+.store-settings input,
+.store-settings textarea {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  min-height: 44px;
+  padding: 10px 12px;
+}
+
+.store-settings textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+@media (max-width: 980px) {
   .merchant-grid {
     grid-template-columns: 1fr;
   }
 
-  .merchant-hero {
+  .order-detail {
+    position: static;
+  }
+}
+
+@media (max-width: 680px) {
+  .merchant-tabs {
+    grid-template-columns: 1fr;
+  }
+
+  .merchant-hero,
+  .dish-list article {
     align-items: start;
     flex-direction: column;
+  }
+
+  .hero-actions,
+  .action-row {
+    flex-direction: column;
+    width: 100%;
   }
 }
