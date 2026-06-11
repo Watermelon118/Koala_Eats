@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/server/">
+    <Project Path="src/server/KoalaEats.Api/KoalaEats.Api.csproj" />
+  </Folder>
+</Solution>
