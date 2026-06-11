@@ -1,0 +1,31 @@
+# Build outputs
+bin/
+obj/
+dist/
+build/
+out/
+
+# Dependencies
+node_modules/
+
+# Local IDE state
+.vs/
+.vscode/
+.idea/
+*.user
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+appsettings.Local.json
+appsettings.*.Local.json
+
+# Logs and temp files
+*.log
+*.tmp
+*.temp
+
+# OS files
+Thumbs.db
+.DS_Store
