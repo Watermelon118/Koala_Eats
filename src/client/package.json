@@ -1,0 +1,32 @@
+{
+  "name": "koala-eats-client",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "customer-web",
+    "merchant-web",
+    "rider-web",
+    "admin-web"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "build:customer": "npm run build -w customer-web",
+    "build:merchant": "npm run build -w merchant-web",
+    "build:rider": "npm run build -w rider-web",
+    "build:admin": "npm run build -w admin-web"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^6.0.1",
+    "lucide-react": "^0.561.0",
+    "vite": "^8.0.12",
+    "typescript": "~6.0.2",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3"
+  }
+}

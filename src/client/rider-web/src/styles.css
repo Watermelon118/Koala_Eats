@@ -1,0 +1,109 @@
+.rider-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+}
+
+.panel-title,
+.delivery-footer,
+.route-steps {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.delivery-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.delivery-card {
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.delivery-card span,
+.delivery-card p,
+.delivery-footer span,
+.route-steps span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.delivery-card p {
+  margin: 10px 0;
+}
+
+.map-preview {
+  background:
+    linear-gradient(90deg, rgba(33, 27, 21, 0.08) 1px, transparent 1px),
+    linear-gradient(rgba(33, 27, 21, 0.08) 1px, transparent 1px),
+    #fff6d4;
+  background-size: 34px 34px;
+  border-radius: 8px;
+  min-height: 360px;
+  overflow: hidden;
+  position: relative;
+  margin-top: 14px;
+}
+
+.route-line {
+  background: var(--ink);
+  border-radius: 999px;
+  height: 6px;
+  left: 18%;
+  position: absolute;
+  right: 16%;
+  top: 50%;
+  transform: rotate(-14deg);
+}
+
+.pin {
+  align-items: center;
+  border-radius: 999px;
+  color: #ffffff;
+  display: flex;
+  font-weight: 900;
+  height: 38px;
+  justify-content: center;
+  position: absolute;
+  width: 38px;
+}
+
+.pickup {
+  background: var(--success);
+  left: 15%;
+  top: 57%;
+}
+
+.rider {
+  background: var(--brand-deep);
+  left: 46%;
+  top: 40%;
+}
+
+.dropoff {
+  background: var(--danger);
+  right: 12%;
+  top: 28%;
+}
+
+.route-steps {
+  margin-top: 14px;
+}
+
+.route-steps span {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+}
+
+@media (max-width: 900px) {
+  .rider-grid {
+    grid-template-columns: 1fr;
+  }
+}
