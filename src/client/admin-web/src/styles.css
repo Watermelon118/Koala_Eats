@@ -1,0 +1,65 @@
+.admin-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+}
+
+.panel-title,
+.task-card {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.task-list,
+.module-grid {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.task-card,
+.module-grid article {
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.task-card span,
+.task-card small,
+.module-grid span {
+  color: var(--muted);
+  display: block;
+  font-size: 13px;
+}
+
+.task-card.warning {
+  border-color: #e7b64a;
+}
+
+.task-card.urgent {
+  border-color: var(--danger);
+}
+
+.module-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.module-grid article {
+  display: grid;
+  gap: 8px;
+  min-height: 142px;
+}
+
+.module-grid svg {
+  color: var(--brand-deep);
+}
+
+@media (max-width: 1000px) {
+  .admin-grid,
+  .module-grid {
+    grid-template-columns: 1fr;
+  }
+}

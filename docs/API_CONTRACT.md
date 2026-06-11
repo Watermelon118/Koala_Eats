@@ -22,6 +22,17 @@
 - 本地开发 API：`http://192.168.88.100:5156`
 - 前端通过 `VITE_API_BASE_URL` 读取。
 - 多设备测试时不能使用 `localhost` 或 `127.0.0.1` 作为前端 API 地址。
+- 前端本地端口：
+  - Customer Web：`http://192.168.88.100:5173`
+  - Merchant Web：`http://192.168.88.100:5174`
+  - Rider Web：`http://192.168.88.100:5175`
+  - Admin Web：`http://192.168.88.100:5176`
+
+### 端隔离
+
+- 用户端不能出现进入商家端、骑手端、管理端的入口。
+- 商家端、骑手端、管理端同理，只展示自身角色功能。
+- 后端实现认证后，必须按角色鉴权；前端隔离不是安全边界。
 
 ### 响应格式
 
@@ -93,9 +104,11 @@ Response `200`:
 
 后续由前端登录页面需求补充。
 
-## Stores
+## Customer API
 
-### GET `/api/customer/stores`
+### Stores
+
+#### GET `/api/customer/stores`
 
 状态：`Mocked`
 
@@ -134,7 +147,7 @@ Response `200`:
 }
 ```
 
-### GET `/api/customer/stores/{storeId}`
+#### GET `/api/customer/stores/{storeId}`
 
 状态：`Mocked`
 
@@ -161,9 +174,9 @@ Response `200`:
 }
 ```
 
-## Menu
+### Menu
 
-### GET `/api/customer/stores/{storeId}/menu`
+#### GET `/api/customer/stores/{storeId}/menu`
 
 状态：`Mocked`
 
@@ -188,9 +201,9 @@ Response `200`:
 }
 ```
 
-## Orders
+### Orders
 
-### POST `/api/customer/orders/preview`
+#### POST `/api/customer/orders/preview`
 
 状态：`Mocked`
 
@@ -225,7 +238,7 @@ Response `200`:
 }
 ```
 
-### POST `/api/customer/orders`
+#### POST `/api/customer/orders`
 
 状态：`Planned`
 
@@ -261,10 +274,179 @@ Response `200`:
 }
 ```
 
-## Delivery
+## Merchant API
 
-后续由骑手端和订单地图追踪页面补充。
+### GET `/api/merchant/dashboard`
+
+状态：`Mocked`
+
+用途：商家端首页获取店铺概览、今日指标和位置摘要。
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": {
+    "store": {
+      "id": "store-koala-bowl",
+      "name": "考拉能量饭",
+      "rating": 4.8,
+      "monthlySales": 1320,
+      "deliveryMinutes": 28,
+      "address": "Queen Street, Auckland CBD"
+    },
+    "metrics": {
+      "pendingOrders": 12,
+      "preparingOrders": 8,
+      "todayRevenue": 860,
+      "activeMenuItems": 3
+    }
+  }
+}
+```
+
+### GET `/api/merchant/orders`
+
+状态：`Mocked`
+
+用途：商家端首页订单队列。
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": [
+    {
+      "id": "KE-2048",
+      "customerName": "Shuaijie",
+      "itemsSummary": "照烧鸡腿饭 x2、味噌汤 x1",
+      "status": "待接单",
+      "totalAmount": 37.8,
+      "placedMinutesAgo": 3
+    }
+  ]
+}
+```
+
+### GET `/api/merchant/menu-items`
+
+状态：`Mocked`
+
+用途：商家端首页菜品管理列表。
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": [
+    {
+      "id": "bowl-teriyaki",
+      "name": "照烧鸡腿饭",
+      "price": 16.8,
+      "monthlySales": 420,
+      "tag": "招牌"
+    }
+  ]
+}
+```
+
+## Rider API
+
+### GET `/api/rider/dashboard`
+
+状态：`Mocked`
+
+用途：骑手端首页获取接单概览。
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": {
+    "availableDeliveries": 9,
+    "activeDeliveries": 2,
+    "todayIncome": 86,
+    "averageDeliveryMinutes": 24
+  }
+}
+```
+
+### GET `/api/rider/deliveries`
+
+状态：`Mocked`
+
+用途：骑手端首页配送单列表。
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": [
+    {
+      "id": "D-801",
+      "storeName": "考拉能量饭",
+      "customerAddress": "12 Queen Street",
+      "distanceKm": 2.8,
+      "fee": 8.5,
+      "status": "可接单"
+    }
+  ]
+}
+```
 
 ## Admin
 
-后续由管理端页面补充。
+### GET `/api/admin/dashboard`
+
+状态：`Mocked`
+
+用途：管理端首页获取平台指标。
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": {
+    "pendingMerchantReviews": 7,
+    "abnormalOrders": 2,
+    "onlineRiders": 24,
+    "todayOrders": 128
+  }
+}
+```
+
+### GET `/api/admin/tasks`
+
+状态：`Mocked`
+
+用途：管理端首页待处理事项。
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": [
+    {
+      "id": "A-301",
+      "title": "新商家资质审核",
+      "owner": "海港寿司",
+      "status": "待审核",
+      "severity": "warning"
+    }
+  ]
+}
+```
