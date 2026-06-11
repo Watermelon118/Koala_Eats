@@ -95,15 +95,171 @@ Response `200`:
 
 ## Stores
 
-后续由用户端商家列表和商家端店铺资料页面补充。
+### GET `/api/customer/stores`
+
+状态：`Mocked`
+
+用途：用户端首页获取附近商家列表。
+
+Query:
+
+```json
+{
+  "category": "全部",
+  "latitude": -36.8485,
+  "longitude": 174.7633
+}
+```
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": [
+    {
+      "id": "store-koala-bowl",
+      "name": "考拉能量饭",
+      "category": "米饭套餐",
+      "rating": 4.8,
+      "monthlySales": 1320,
+      "deliveryMinutes": 28,
+      "deliveryFee": 2.99,
+      "distanceKm": 1.4,
+      "promotion": "满 $35 减 $6",
+      "coverTone": "rice"
+    }
+  ]
+}
+```
+
+### GET `/api/customer/stores/{storeId}`
+
+状态：`Mocked`
+
+用途：用户端进入商家详情页。
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": {
+    "id": "store-koala-bowl",
+    "name": "考拉能量饭",
+    "category": "米饭套餐",
+    "rating": 4.8,
+    "monthlySales": 1320,
+    "deliveryMinutes": 28,
+    "deliveryFee": 2.99,
+    "distanceKm": 1.4,
+    "promotion": "满 $35 减 $6",
+    "coverTone": "rice"
+  }
+}
+```
 
 ## Menu
 
-后续由用户端菜单页面和商家端菜品管理页面补充。
+### GET `/api/customer/stores/{storeId}/menu`
+
+状态：`Mocked`
+
+用途：用户端进入商家后获取菜单。
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": [
+    {
+      "id": "bowl-teriyaki",
+      "name": "照烧鸡腿饭",
+      "description": "去骨鸡腿、溏心蛋、时蔬、秘制照烧汁",
+      "price": 16.8,
+      "monthlySales": 420,
+      "tag": "招牌"
+    }
+  ]
+}
+```
 
 ## Orders
 
-后续由购物车、下单、商家接单页面补充。
+### POST `/api/customer/orders/preview`
+
+状态：`Mocked`
+
+用途：用户端购物车计算价格预览。
+
+Request:
+
+```json
+{
+  "storeId": "store-koala-bowl",
+  "items": [
+    {
+      "menuItemId": "bowl-teriyaki",
+      "quantity": 2
+    }
+  ]
+}
+```
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": {
+    "itemsAmount": 33.6,
+    "deliveryFee": 2.99,
+    "discountAmount": 0,
+    "totalAmount": 36.59
+  }
+}
+```
+
+### POST `/api/customer/orders`
+
+状态：`Planned`
+
+用途：用户端提交订单。当前前端只有“去结算”按钮，尚未进入订单提交页。
+
+Request:
+
+```json
+{
+  "storeId": "store-koala-bowl",
+  "addressId": "address-home",
+  "items": [
+    {
+      "menuItemId": "bowl-teriyaki",
+      "quantity": 2
+    }
+  ],
+  "remark": "少盐"
+}
+```
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": {
+    "orderId": "order-1001",
+    "status": "PendingPayment",
+    "totalAmount": 36.59
+  }
+}
+```
 
 ## Delivery
 
