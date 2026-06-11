@@ -2,7 +2,7 @@
 
 ## 当前阶段
 
-2026-06-11：四端物理拆分已合并到 `main`；当前正在修复四个前端应用本地 dev 启动脚本缺失问题。
+2026-06-11：四端物理拆分和前端 dev 启动脚本修复均已合并到 `main`；下一步继续细化用户端结算、模拟支付和订单状态页面。
 
 ## 已做决策
 
@@ -43,4 +43,4 @@
 
 ## 上次对话结尾状态
 
-四端物理拆分已合并到 `main`。当前正在 `fix/frontend-dev-scripts` 分支修复前端本地 dev 启动脚本，修完后需要重新跑前后端 build 检查，通过后提交、合并回 `main` 并删除 fix 分支。
+四端物理拆分已完成并合并到 `main`。前端本地 dev 启动脚本已修复，验证页面时从 `src/client` 目录运行 `npm run dev:customer`、`npm run dev:merchant`、`npm run dev:rider` 或 `npm run dev:admin`。下一步继续做用户端结算、模拟支付和订单状态页面。
