@@ -25,10 +25,10 @@ npm run build
 ## Run
 
 ```powershell
-npm run dev -w customer-web -- --host 0.0.0.0 --port 5173
-npm run dev -w merchant-web -- --host 0.0.0.0 --port 5174
-npm run dev -w rider-web -- --host 0.0.0.0 --port 5175
-npm run dev -w admin-web -- --host 0.0.0.0 --port 5176
+npm run dev:customer
+npm run dev:merchant
+npm run dev:rider
+npm run dev:admin
 ```
 
 同局域网设备访问：
