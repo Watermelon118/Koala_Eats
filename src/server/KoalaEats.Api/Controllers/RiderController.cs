@@ -46,4 +46,10 @@ public sealed class RiderController : ApiControllerBase
     {
         return Execute(() => _stateStore.ReportLocation(request));
     }
+
+    [HttpPatch("deliveries/{deliveryId}/issue")]
+    public IActionResult ReportDeliveryIssue([FromRoute] string deliveryId, [FromBody] ReportDeliveryIssueRequest request)
+    {
+        return Execute(() => _stateStore.ReportDeliveryIssue(deliveryId, request));
+    }
 }

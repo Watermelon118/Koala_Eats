@@ -1,3 +1,7 @@
+using System.Globalization;
+using KoalaEats.Api.Data;
+using Microsoft.EntityFrameworkCore;
+
 namespace KoalaEats.Api;
 
 public sealed class BusinessStateStore
@@ -82,6 +86,7 @@ public sealed class BusinessStateStore
     };
 
     private readonly object _gate = new();
+    private readonly IDbContextFactory<KoalaEatsDbContext> _dbContextFactory;
     private readonly Dictionary<string, StoreSeed> _storeSeeds;
     private readonly MenuItem[] _primaryStoreBaseMenu;
     private MerchantStoreProfile _merchantProfile;
@@ -93,12 +98,13 @@ public sealed class BusinessStateStore
     private List<PlatformOrder> _platformOrders;
     private List<AccountRecord> _accountRecords;
     private List<DeliveryArea> _deliveryAreas;
-    private readonly AdminTask[] _adminTasks;
+    private AdminTask[] _adminTasks;
     private int _nextCustomerOrderNumber;
     private int _nextDeliveryNumber;
 
-    public BusinessStateStore()
+    public BusinessStateStore(IDbContextFactory<KoalaEatsDbContext> dbContextFactory)
     {
+        _dbContextFactory = dbContextFactory;
         _storeSeeds = BuildStoreSeeds();
         _primaryStoreBaseMenu = _storeSeeds["store-koala-bowl"].Menu;
         _merchantProfile = BuildInitialMerchantProfile();
@@ -113,6 +119,910 @@ public sealed class BusinessStateStore
         _adminTasks = BuildInitialAdminTasks();
         _nextCustomerOrderNumber = 3001;
         _nextDeliveryNumber = 900;
+        InitializePersistence();
+    }
+
+    private void InitializePersistence()
+    {
+        using var db = _dbContextFactory.CreateDbContext();
+        db.Database.Migrate();
+
+        if (!db.Stores.Any() &&
+            !db.MenuCategories.Any() &&
+            !db.MenuItems.Any() &&
+            !db.MenuOptionGroups.Any() &&
+            !db.MenuOptions.Any() &&
+            !db.Orders.Any() &&
+            !db.OrderItems.Any() &&
+            !db.OrderItemOptions.Any() &&
+            !db.OrderStatusEvents.Any() &&
+            !db.Riders.Any() &&
+            !db.DeliveryTasks.Any() &&
+            !db.MerchantApplications.Any() &&
+            !db.PlatformOrders.Any() &&
+            !db.Accounts.Any() &&
+            !db.DeliveryAreas.Any() &&
+            !db.AdminTasks.Any())
+        {
+            PersistSnapshot(db);
+            return;
+        }
+
+        LoadStateFromDatabase(db);
+    }
+
+    private void LoadStateFromDatabase(KoalaEatsDbContext db)
+    {
+        var store = db.Stores.FirstOrDefault(entity => entity.Id == "store-koala-bowl");
+        if (store is not null)
+        {
+            _merchantProfile = new MerchantStoreProfile
+            {
+                Id = store.Id,
+                Name = store.Name,
+                Address = store.AddressLine,
+                OpeningHours = store.OpeningHours,
+                IsOpen = store.IsOpen,
+                DeliveryRadiusKm = store.DeliveryRadiusKm,
+                AveragePreparationMinutes = store.DeliveryMinutes,
+                Announcement = store.Announcement,
+                Coordinates = new Coordinates
+                {
+                    Latitude = (double)store.LocationLatitude,
+                    Longitude = (double)store.LocationLongitude,
+                },
+            };
+        }
+
+        _merchantMenuItems = LoadMerchantMenuItems(db).Select(item => new MenuItem
+        {
+            Id = item.Id,
+            CategoryId = item.CategoryId,
+            Name = item.Name,
+            Description = item.Description,
+            Price = item.Price,
+            MonthlySales = item.MonthlySales,
+            Tag = item.Tag,
+            Stock = item.Stock,
+            IsAvailable = item.IsAvailable,
+            ImageTone = item.ImageTone,
+            OptionGroups = item.OptionGroups,
+        }).ToList();
+        RefreshPrimaryStoreSeed();
+
+        var orderEntities = db.Orders
+            .OrderByDescending(order => order.PlacedAtUtc)
+            .ToList();
+        var orderItemEntities = db.OrderItems
+            .OrderBy(item => item.SortOrder)
+            .ToList();
+        var orderItemOptionEntities = db.OrderItemOptions.ToList();
+        _customerOrders = orderEntities.Select(order => MapCustomerOrder(order, orderItemEntities, orderItemOptionEntities)).ToList();
+        _merchantOrders = orderEntities.Select(order => MapMerchantOrder(order, orderItemEntities, orderItemOptionEntities)).ToList();
+        _nextCustomerOrderNumber = GetNextSequenceNumber(_customerOrders.Select(order => order.Id), "KE-", 3001);
+
+        _deliveryTasks = db.DeliveryTasks
+            .OrderByDescending(task => task.CreatedAtUtc)
+            .Select(MapDeliveryTask)
+            .ToList();
+        _nextDeliveryNumber = GetNextSequenceNumber(_deliveryTasks.Select(task => task.Id), "D-", 900);
+        _merchantApplications = db.MerchantApplications
+            .OrderByDescending(application => application.SubmittedAtUtc)
+            .Select(MapMerchantApplication)
+            .ToList();
+        _platformOrders = db.PlatformOrders
+            .OrderByDescending(order => order.CreatedAtUtc)
+            .Select(MapPlatformOrder)
+            .ToList();
+        _accountRecords = db.Accounts
+            .OrderBy(record => record.Role)
+            .ThenBy(record => record.Name)
+            .Select(MapAccountRecord)
+            .ToList();
+        _deliveryAreas = db.DeliveryAreas
+            .OrderBy(area => area.SortOrder)
+            .Select(MapDeliveryArea)
+            .ToList();
+
+        var adminTasks = db.AdminTasks
+            .OrderBy(task => task.CreatedAtUtc)
+            .Select(MapAdminTask)
+            .ToArray();
+        if (adminTasks.Length > 0)
+        {
+            _adminTasks = adminTasks;
+        }
+    }
+
+    private void PersistSnapshot()
+    {
+        using var db = _dbContextFactory.CreateDbContext();
+        PersistSnapshot(db);
+    }
+
+    private void PersistSnapshot(KoalaEatsDbContext db)
+    {
+        ReplaceSet(db.Stores, BuildStoreEntities());
+        ReplaceSet(db.MenuCategories, BuildMenuCategoryEntities());
+        ReplaceSet(db.MenuItems, BuildMenuItemEntities());
+        ReplaceSet(db.MenuOptionGroups, BuildMenuOptionGroupEntities());
+        ReplaceSet(db.MenuOptions, BuildMenuOptionEntities());
+        ReplaceSet(db.Orders, BuildOrderEntities());
+        ReplaceSet(db.OrderItems, BuildOrderItemEntities());
+        ReplaceSet(db.OrderItemOptions, BuildOrderItemOptionEntities());
+        ReplaceSet(db.OrderStatusEvents, BuildOrderStatusEventEntities());
+        ReplaceSet(db.Riders, BuildRiderEntities());
+        ReplaceSet(db.DeliveryTasks, BuildDeliveryTaskEntities());
+        ReplaceSet(db.MerchantApplications, BuildMerchantApplicationEntities());
+        ReplaceSet(db.PlatformOrders, BuildPlatformOrderEntities());
+        ReplaceSet(db.Accounts, BuildAccountEntities());
+        ReplaceSet(db.DeliveryAreas, BuildDeliveryAreaEntities());
+        ReplaceSet(db.AdminTasks, BuildAdminTaskEntities());
+        db.SaveChanges();
+    }
+
+    private static void ReplaceSet<TEntity>(DbSet<TEntity> set, IEnumerable<TEntity> entities)
+        where TEntity : class
+    {
+        var current = set.ToList();
+        if (current.Count > 0)
+        {
+            set.RemoveRange(current);
+        }
+
+        set.AddRange(entities);
+    }
+
+    private void RefreshPrimaryStoreSeed()
+    {
+        var current = _storeSeeds["store-koala-bowl"];
+        _storeSeeds["store-koala-bowl"] = current with
+        {
+            Address = _merchantProfile.Address,
+            OpeningHours = _merchantProfile.OpeningHours,
+            Announcement = _merchantProfile.Announcement,
+            DeliveryRadiusKm = _merchantProfile.DeliveryRadiusKm,
+            Location = _merchantProfile.Coordinates,
+            Menu = _merchantMenuItems.ToArray(),
+        };
+    }
+
+    private static MenuItem ToSeedMenuItem(MerchantMenuItem item)
+    {
+        return new MenuItem
+        {
+            Id = item.Id,
+            CategoryId = item.CategoryId,
+            Name = item.Name,
+            Description = item.Description,
+            Price = item.Price,
+            MonthlySales = item.MonthlySales,
+            Tag = item.Tag,
+            Stock = item.Stock,
+            IsAvailable = item.IsAvailable,
+            ImageTone = item.ImageTone,
+            OptionGroups = item.OptionGroups,
+        };
+    }
+
+    private IEnumerable<StoreEntity> BuildStoreEntities()
+    {
+        foreach (var seed in _storeSeeds.Values)
+        {
+            if (seed.Id == _merchantProfile.Id)
+            {
+                yield return new StoreEntity
+                {
+                    Id = seed.Id,
+                    MerchantAccountId = "M-2001",
+                    Name = _merchantProfile.Name,
+                    Category = seed.Category,
+                    Rating = seed.Rating,
+                    MonthlySales = seed.MonthlySales,
+                    DeliveryMinutes = _merchantProfile.AveragePreparationMinutes,
+                    DeliveryFee = seed.DeliveryFee,
+                    MinOrderAmount = seed.MinOrderAmount,
+                    DeliveryRadiusKm = _merchantProfile.DeliveryRadiusKm,
+                    Promotion = seed.Promotion,
+                    CoverTone = seed.CoverTone,
+                    IsOpen = _merchantProfile.IsOpen,
+                    OpeningHours = _merchantProfile.OpeningHours,
+                    Announcement = _merchantProfile.Announcement,
+                    AddressLine = _merchantProfile.Address,
+                    LocationLatitude = (decimal)_merchantProfile.Coordinates.Latitude,
+                    LocationLongitude = (decimal)_merchantProfile.Coordinates.Longitude,
+                    CreatedAtUtc = DateTimeOffset.UtcNow,
+                    UpdatedAtUtc = DateTimeOffset.UtcNow,
+                };
+                continue;
+            }
+
+            yield return new StoreEntity
+            {
+                Id = seed.Id,
+                Name = seed.Name,
+                Category = seed.Category,
+                Rating = seed.Rating,
+                MonthlySales = seed.MonthlySales,
+                DeliveryMinutes = seed.DeliveryMinutes,
+                DeliveryFee = seed.DeliveryFee,
+                MinOrderAmount = seed.MinOrderAmount,
+                DeliveryRadiusKm = seed.DeliveryRadiusKm,
+                Promotion = seed.Promotion,
+                CoverTone = seed.CoverTone,
+                IsOpen = true,
+                OpeningHours = seed.OpeningHours,
+                Announcement = seed.Announcement,
+                AddressLine = seed.Address,
+                LocationLatitude = (decimal)seed.Location.Latitude,
+                LocationLongitude = (decimal)seed.Location.Longitude,
+                CreatedAtUtc = DateTimeOffset.UtcNow,
+                UpdatedAtUtc = DateTimeOffset.UtcNow,
+            };
+        }
+    }
+
+    private IEnumerable<MenuCategoryEntity> BuildMenuCategoryEntities()
+    {
+        foreach (var seed in _storeSeeds.Values)
+        {
+            var menuCategories = seed.Id == _merchantProfile.Id
+                ? _storeSeeds[seed.Id].MenuCategories
+                : seed.MenuCategories;
+
+            for (var index = 0; index < menuCategories.Length; index++)
+            {
+                var category = menuCategories[index];
+                yield return new MenuCategoryEntity
+                {
+                    Id = $"{seed.Id}-{category.Id}",
+                    StoreId = seed.Id,
+                    Name = category.Name,
+                    SortOrder = index,
+                };
+            }
+        }
+    }
+
+    private IEnumerable<MenuItemEntity> BuildMenuItemEntities()
+    {
+        foreach (var seed in _storeSeeds.Values)
+        {
+            var menu = seed.Id == _merchantProfile.Id ? _merchantMenuItems.ToArray() : seed.Menu;
+            for (var index = 0; index < menu.Length; index++)
+            {
+                var item = menu[index];
+                yield return new MenuItemEntity
+                {
+                    Id = item.Id,
+                    StoreId = seed.Id,
+                    MenuCategoryId = item.CategoryId,
+                    Name = item.Name,
+                    Description = item.Description,
+                    Price = item.Price,
+                    MonthlySales = item.MonthlySales,
+                    Tag = item.Tag,
+                    Stock = item.Stock,
+                    IsAvailable = item.IsAvailable,
+                    ImageTone = item.ImageTone,
+                    SortOrder = index,
+                };
+            }
+        }
+    }
+
+    private IEnumerable<MenuOptionGroupEntity> BuildMenuOptionGroupEntities()
+    {
+        foreach (var seed in _storeSeeds.Values)
+        {
+            var menu = seed.Id == _merchantProfile.Id ? _merchantMenuItems.ToArray() : seed.Menu;
+            foreach (var item in menu)
+            {
+                if (item.OptionGroups is null)
+                {
+                    continue;
+                }
+
+                for (var index = 0; index < item.OptionGroups.Length; index++)
+                {
+                    var group = item.OptionGroups[index];
+                    yield return new MenuOptionGroupEntity
+                    {
+                        Id = ComposeScopedId(item.Id, group.Id),
+                        MenuItemId = item.Id,
+                        Name = group.Name,
+                        Required = group.Required,
+                        SortOrder = index,
+                    };
+                }
+            }
+        }
+    }
+
+    private IEnumerable<MenuOptionEntity> BuildMenuOptionEntities()
+    {
+        foreach (var seed in _storeSeeds.Values)
+        {
+            var menu = seed.Id == _merchantProfile.Id ? _merchantMenuItems.ToArray() : seed.Menu;
+            foreach (var item in menu)
+            {
+                if (item.OptionGroups is null)
+                {
+                    continue;
+                }
+
+                foreach (var group in item.OptionGroups)
+                {
+                    for (var index = 0; index < group.Options.Length; index++)
+                    {
+                        var option = group.Options[index];
+                        yield return new MenuOptionEntity
+                        {
+                            Id = ComposeScopedId(ComposeScopedId(item.Id, group.Id), option.Id),
+                            MenuOptionGroupId = ComposeScopedId(item.Id, group.Id),
+                            Name = option.Name,
+                            PriceDelta = option.PriceDelta,
+                            SortOrder = index,
+                        };
+                    }
+                }
+            }
+        }
+    }
+
+    private IEnumerable<OrderEntity> BuildOrderEntities()
+    {
+        var orders = _customerOrders
+            .OrderByDescending(order => order.Id)
+            .ToArray();
+
+        foreach (var order in orders)
+        {
+            yield return new OrderEntity
+            {
+                Id = order.Id,
+                StoreId = order.StoreId,
+                StoreName = order.StoreName,
+                StoreLatitude = (decimal)_merchantProfile.Coordinates.Latitude,
+                StoreLongitude = (decimal)_merchantProfile.Coordinates.Longitude,
+                DeliveryRadiusKm = order.DeliveryRadiusKm ?? _merchantProfile.DeliveryRadiusKm,
+                CustomerId = "U-1001",
+                CustomerName = order.Address.ReceiverName,
+                CustomerPhoneMasked = order.Address.PhoneMasked,
+                CustomerAddressId = order.Address.Id,
+                ReceiverName = order.Address.ReceiverName,
+                AddressLabel = order.Address.Label,
+                AddressLine = order.Address.AddressLine,
+                AddressDetail = order.Address.Detail,
+                AddressLatitude = (decimal)order.Address.Coordinates.Latitude,
+                AddressLongitude = (decimal)order.Address.Coordinates.Longitude,
+                DeliveryDistanceKm = order.DeliveryDistanceKm ?? 0m,
+                Status = order.Status,
+                StatusText = order.StatusText,
+                PaymentStatus = ResolvePaymentStatus(order.Status),
+                ItemsAmount = order.Price.ItemsAmount,
+                DeliveryFee = order.Price.DeliveryFee,
+                PackagingFee = order.Price.PackagingFee,
+                DiscountAmount = order.Price.DiscountAmount,
+                TotalAmount = order.Price.TotalAmount,
+                Remark = order.Remark,
+                PaymentMethod = order.Status == "PendingPayment" ? null : "MockBalance",
+                PlacedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-Math.Max(1, order.EstimatedArrivalMinutes)),
+                PaidAtUtc = order.Status is "PendingPayment" or "Canceled" ? null : DateTimeOffset.UtcNow.AddMinutes(-Math.Max(1, order.EstimatedArrivalMinutes - 2)),
+                CanceledAtUtc = order.Status is "Canceled" ? DateTimeOffset.UtcNow : null,
+                CompletedAtUtc = order.Status is "Completed" ? DateTimeOffset.UtcNow : null,
+                LastStatusChangedAtUtc = DateTimeOffset.UtcNow,
+                EstimatedArrivalMinutes = order.EstimatedArrivalMinutes,
+                RiderId = "R-3001",
+                RiderName = order.RiderName,
+                RiderPhoneMasked = order.RiderPhoneMasked,
+                RiderLatitude = (decimal)order.RiderLocation.Latitude,
+                RiderLongitude = (decimal)order.RiderLocation.Longitude,
+            };
+        }
+    }
+
+    private IEnumerable<OrderItemEntity> BuildOrderItemEntities()
+    {
+        foreach (var order in _customerOrders)
+        {
+            for (var index = 0; index < order.Items.Length; index++)
+            {
+                var item = order.Items[index];
+                yield return new OrderItemEntity
+                {
+                    Id = $"{order.Id}-item-{index + 1}",
+                    OrderId = order.Id,
+                    MenuItemId = item.MenuItemId ?? item.Id,
+                    Name = item.Name ?? string.Empty,
+                    CategoryId = item.CategoryId,
+                    CategoryName = item.CategoryName,
+                    Quantity = item.Quantity,
+                    UnitPrice = item.UnitPrice ?? item.Price ?? 0m,
+                    LineTotal = (item.UnitPrice ?? item.Price ?? 0m) * item.Quantity,
+                    CartKey = item.CartKey,
+                    SortOrder = index,
+                };
+            }
+        }
+    }
+
+    private IEnumerable<OrderItemOptionEntity> BuildOrderItemOptionEntities()
+    {
+        foreach (var order in _customerOrders)
+        {
+            for (var itemIndex = 0; itemIndex < order.Items.Length; itemIndex++)
+            {
+                var item = order.Items[itemIndex];
+                if (item.SelectedOptions is null)
+                {
+                    continue;
+                }
+
+                foreach (var option in item.SelectedOptions)
+                {
+                    yield return new OrderItemOptionEntity
+                    {
+                        Id = $"{order.Id}-item-{itemIndex + 1}-{option.GroupId}-{option.Id}",
+                        OrderItemId = $"{order.Id}-item-{itemIndex + 1}",
+                        GroupId = option.GroupId,
+                        GroupName = option.GroupName,
+                        OptionId = option.Id,
+                        OptionName = option.Name,
+                        PriceDelta = option.PriceDelta,
+                    };
+                }
+            }
+        }
+    }
+
+    private IEnumerable<OrderStatusEventEntity> BuildOrderStatusEventEntities()
+    {
+        foreach (var order in _customerOrders)
+        {
+            yield return new OrderStatusEventEntity
+            {
+                Id = $"{order.Id}-status",
+                OrderId = order.Id,
+                Status = order.Status,
+                StatusText = order.StatusText,
+                Description = order.StatusText,
+                Source = "system",
+                HappenedAtUtc = DateTimeOffset.UtcNow,
+            };
+        }
+    }
+
+    private static IEnumerable<RiderEntity> BuildRiderEntities()
+    {
+        return
+        [
+            new RiderEntity
+            {
+                Id = "R-3001",
+                AccountId = "R-3001",
+                Name = "Liam",
+                Phone = "020 **** 776",
+                Status = "Active",
+                CurrentLatitude = -36.8482m,
+                CurrentLongitude = 174.764m,
+                Rating = 4.92m,
+                IsOnline = true,
+                CreatedAtUtc = DateTimeOffset.UtcNow,
+                UpdatedAtUtc = DateTimeOffset.UtcNow,
+            },
+        ];
+    }
+
+    private IEnumerable<DeliveryTaskEntity> BuildDeliveryTaskEntities()
+    {
+        foreach (var task in _deliveryTasks)
+        {
+            yield return new DeliveryTaskEntity
+            {
+                Id = task.Id,
+                OrderId = task.OrderId,
+                RiderId = task.Status is "Available" ? null : "R-3001",
+                StoreName = task.StoreName,
+                PickupAddress = task.PickupAddress,
+                CustomerAddress = task.CustomerAddress,
+                DistanceKm = task.DistanceKm,
+                Fee = task.Fee,
+                Status = task.Status,
+                StatusText = task.StatusText,
+                PickupCode = task.PickupCode,
+                CustomerPhoneMasked = task.CustomerPhoneMasked,
+                EstimatedMinutes = task.EstimatedMinutes,
+                PickupLatitude = (decimal)task.PickupLocation.Latitude,
+                PickupLongitude = (decimal)task.PickupLocation.Longitude,
+                DropoffLatitude = (decimal)task.DropoffLocation.Latitude,
+                DropoffLongitude = (decimal)task.DropoffLocation.Longitude,
+                CurrentLatitude = task.CurrentLocation is null ? null : (decimal?)task.CurrentLocation.Latitude,
+                CurrentLongitude = task.CurrentLocation is null ? null : (decimal?)task.CurrentLocation.Longitude,
+                CreatedAtUtc = DateTimeOffset.UtcNow,
+                UpdatedAtUtc = DateTimeOffset.UtcNow,
+            };
+        }
+    }
+
+    private IEnumerable<MerchantApplicationEntity> BuildMerchantApplicationEntities()
+    {
+        foreach (var application in _merchantApplications)
+        {
+            yield return new MerchantApplicationEntity
+            {
+                Id = application.Id,
+                StoreName = application.StoreName,
+                ApplicantName = application.ApplicantName,
+                Category = application.Category,
+                Address = application.Address,
+                SubmittedAtUtc = DateTimeOffset.UtcNow.AddHours(-Math.Max(1, application.SubmittedHoursAgo)),
+                Status = application.Status,
+                ReviewedAtUtc = application.Status == "Pending" ? null : DateTimeOffset.UtcNow,
+                ReviewedBy = application.Status == "Pending" ? null : "admin",
+            };
+        }
+    }
+
+    private IEnumerable<PlatformOrderEntity> BuildPlatformOrderEntities()
+    {
+        foreach (var order in _platformOrders)
+        {
+            yield return new PlatformOrderEntity
+            {
+                Id = order.Id,
+                OrderId = order.Id,
+                StoreName = order.StoreName,
+                CustomerName = order.CustomerName,
+                RiderName = order.RiderName,
+                Status = order.Status,
+                TotalAmount = order.TotalAmount,
+                RiskLevel = order.RiskLevel,
+                Reason = null,
+                CreatedAtUtc = DateTimeOffset.UtcNow,
+                UpdatedAtUtc = DateTimeOffset.UtcNow,
+            };
+        }
+    }
+
+    private static IEnumerable<AccountEntity> BuildAccountEntities()
+    {
+        return
+        [
+            new AccountEntity { Id = "U-1001", Name = "Shuaijie", Role = "Customer", Status = "Active", CreatedAtUtc = DateTimeOffset.UtcNow, UpdatedAtUtc = DateTimeOffset.UtcNow },
+            new AccountEntity { Id = "M-2001", Name = "Koala Bowl", Role = "Merchant", Status = "Active", CreatedAtUtc = DateTimeOffset.UtcNow, UpdatedAtUtc = DateTimeOffset.UtcNow },
+            new AccountEntity { Id = "R-3001", Name = "Liam", Role = "Rider", Status = "Active", CreatedAtUtc = DateTimeOffset.UtcNow, UpdatedAtUtc = DateTimeOffset.UtcNow },
+            new AccountEntity { Id = "R-3002", Name = "Rider #18", Role = "Rider", Status = "PendingReview", CreatedAtUtc = DateTimeOffset.UtcNow, UpdatedAtUtc = DateTimeOffset.UtcNow },
+        ];
+    }
+
+    private IEnumerable<DeliveryAreaEntity> BuildDeliveryAreaEntities()
+    {
+        foreach (var area in _deliveryAreas)
+        {
+            yield return new DeliveryAreaEntity
+            {
+                Id = area.Id,
+                Name = area.Name,
+                RadiusKm = area.RadiusKm,
+                BaseFee = area.BaseFee,
+                IsEnabled = area.IsEnabled,
+                SortOrder = Array.IndexOf(_deliveryAreas.ToArray(), area),
+                CreatedAtUtc = DateTimeOffset.UtcNow,
+                UpdatedAtUtc = DateTimeOffset.UtcNow,
+            };
+        }
+    }
+
+    private IEnumerable<AdminTaskEntity> BuildAdminTaskEntities()
+    {
+        foreach (var task in _adminTasks)
+        {
+            yield return new AdminTaskEntity
+            {
+                Id = task.Id,
+                Title = task.Title,
+                Owner = task.Owner,
+                Status = task.Status,
+                Severity = task.Severity,
+                CreatedAtUtc = DateTimeOffset.UtcNow,
+                UpdatedAtUtc = DateTimeOffset.UtcNow,
+            };
+        }
+    }
+
+    private static MerchantMenuItem[] LoadMerchantMenuItems(KoalaEatsDbContext db)
+    {
+        var menuCategories = db.MenuCategories
+            .Where(category => category.StoreId == "store-koala-bowl")
+            .OrderBy(category => category.SortOrder)
+            .ToList();
+        var menuItems = db.MenuItems
+            .Where(item => item.StoreId == "store-koala-bowl")
+            .OrderBy(item => item.SortOrder)
+            .ToList();
+        var optionGroups = db.MenuOptionGroups
+            .Where(group => menuItems.Select(item => item.Id).Contains(group.MenuItemId))
+            .OrderBy(group => group.SortOrder)
+            .ToList();
+        var optionGroupsByItem = optionGroups.GroupBy(group => group.MenuItemId).ToDictionary(group => group.Key, group => group.ToList());
+        var options = db.MenuOptions
+            .Where(option => optionGroups.Select(group => group.Id).Contains(option.MenuOptionGroupId))
+            .OrderBy(option => option.SortOrder)
+            .ToList();
+        var optionsByGroup = options.GroupBy(option => option.MenuOptionGroupId).ToDictionary(group => group.Key, group => group.ToList());
+
+        return menuItems.Select(item =>
+        {
+            var categoryName = menuCategories.FirstOrDefault(category => category.Id == item.MenuCategoryId)?.Name ?? "General";
+            var itemOptionGroups = optionGroupsByItem.TryGetValue(item.Id, out var groups)
+                ? groups.Select(group => new MenuOptionGroup
+                {
+                    Id = group.Id,
+                    Name = group.Name,
+                    Required = group.Required,
+                    Options = optionsByGroup.TryGetValue(group.Id, out var groupOptions)
+                        ? groupOptions.Select(option => new MenuOption
+                        {
+                            Id = option.Id,
+                            Name = option.Name,
+                            PriceDelta = option.PriceDelta,
+                        }).ToArray()
+                        : Array.Empty<MenuOption>(),
+                }).ToArray()
+                : null;
+
+            return new MerchantMenuItem
+            {
+                Id = item.Id,
+                CategoryId = item.MenuCategoryId ?? "general",
+                CategoryName = categoryName,
+                Name = item.Name,
+                Description = item.Description,
+                Price = item.Price,
+                MonthlySales = item.MonthlySales,
+                Tag = item.Tag,
+                Stock = item.Stock,
+                IsAvailable = item.IsAvailable,
+                ImageTone = item.ImageTone,
+                OptionGroups = itemOptionGroups,
+            };
+        }).ToArray();
+    }
+
+    private static string ComposeScopedId(string ownerId, string rawId)
+    {
+        if (rawId.StartsWith(ownerId + "-", StringComparison.OrdinalIgnoreCase))
+        {
+            return rawId;
+        }
+
+        return $"{ownerId}-{rawId}";
+    }
+
+    private static CustomerOrder MapCustomerOrder(OrderEntity order, IReadOnlyCollection<OrderItemEntity> orderItems, IReadOnlyCollection<OrderItemOptionEntity> orderItemOptions)
+    {
+        var items = BuildCartLines(order, orderItems, orderItemOptions);
+        return new CustomerOrder
+        {
+            Id = order.Id,
+            StoreId = order.StoreId,
+            StoreName = order.StoreName,
+            DeliveryDistanceKm = order.DeliveryDistanceKm,
+            DeliveryRadiusKm = order.DeliveryRadiusKm,
+            Status = order.Status,
+            StatusText = order.StatusText,
+            Address = new CustomerAddress
+            {
+                Id = order.CustomerAddressId ?? $"{order.Id}-address",
+                Label = order.AddressLabel,
+                ReceiverName = order.ReceiverName,
+                PhoneMasked = order.CustomerPhoneMasked ?? string.Empty,
+                AddressLine = order.AddressLine,
+                Detail = order.AddressDetail ?? string.Empty,
+                PlaceId = null,
+                Coordinates = new Coordinates
+                {
+                    Latitude = (double)order.AddressLatitude,
+                    Longitude = (double)order.AddressLongitude,
+                },
+            },
+            Items = items,
+            Price = new OrderPricePreview
+            {
+                ItemsAmount = order.ItemsAmount,
+                DeliveryFee = order.DeliveryFee,
+                PackagingFee = order.PackagingFee,
+                DiscountAmount = order.DiscountAmount,
+                TotalAmount = order.TotalAmount,
+            },
+            RiderName = order.RiderName,
+            RiderPhoneMasked = order.RiderPhoneMasked ?? string.Empty,
+            RiderLocation = new Coordinates
+            {
+                Latitude = (double)order.RiderLatitude,
+                Longitude = (double)order.RiderLongitude,
+            },
+            EstimatedArrivalMinutes = order.EstimatedArrivalMinutes,
+            Timeline = BuildTimeline(order.Status),
+            Remark = order.Remark,
+        };
+    }
+
+    private static MerchantOrder MapMerchantOrder(OrderEntity order, IReadOnlyCollection<OrderItemEntity> orderItems, IReadOnlyCollection<OrderItemOptionEntity> orderItemOptions)
+    {
+        var items = BuildCartLines(order, orderItems, orderItemOptions);
+        return new MerchantOrder
+        {
+            Id = order.Id,
+            CustomerName = order.CustomerName,
+            ItemsSummary = SummarizeItems(items),
+            Items = items,
+            Status = ResolveMerchantStatusFromCustomerStatus(order.Status),
+            StatusText = MerchantStatusText.TryGetValue(ResolveMerchantStatusFromCustomerStatus(order.Status), out var statusText) ? statusText : ResolveMerchantStatusFromCustomerStatus(order.Status),
+            TotalAmount = order.TotalAmount,
+            PlacedMinutesAgo = (int)Math.Max(0, (DateTimeOffset.UtcNow - order.PlacedAtUtc).TotalMinutes),
+            DeliveryAddressMasked = $"{order.AddressLabel} nearby",
+            CustomerNote = order.Remark ?? "No note",
+            PaymentStatus = order.PaymentStatus,
+        };
+    }
+
+    private static CartLine[] BuildCartLines(OrderEntity order, IReadOnlyCollection<OrderItemEntity> orderItems, IReadOnlyCollection<OrderItemOptionEntity> orderItemOptions)
+    {
+        return orderItems
+            .Where(item => item.OrderId == order.Id)
+            .OrderBy(item => item.SortOrder)
+            .Select(item =>
+            {
+                var selectedOptions = orderItemOptions
+                    .Where(option => option.OrderItemId == item.Id)
+                    .Select(option => new SelectedMenuOption
+                    {
+                        GroupId = option.GroupId ?? string.Empty,
+                        GroupName = option.GroupName,
+                        Id = option.OptionId ?? string.Empty,
+                        Name = option.OptionName,
+                        PriceDelta = option.PriceDelta,
+                    })
+                    .ToArray();
+
+                return new CartLine
+                {
+                    MenuItemId = item.MenuItemId,
+                    Id = item.MenuItemId ?? item.Id,
+                    CategoryId = item.CategoryId,
+                    CategoryName = item.CategoryName,
+                    Name = item.Name,
+                    Quantity = item.Quantity,
+                    CartKey = item.CartKey,
+                    SelectedOptions = selectedOptions,
+                    UnitPrice = item.UnitPrice,
+                    Price = item.UnitPrice,
+                };
+            })
+            .ToArray();
+    }
+
+    private static DeliveryTask MapDeliveryTask(DeliveryTaskEntity task)
+    {
+        return new DeliveryTask
+        {
+            Id = task.Id,
+            OrderId = task.OrderId,
+            StoreName = task.StoreName,
+            PickupAddress = task.PickupAddress,
+            CustomerAddress = task.CustomerAddress,
+            DistanceKm = task.DistanceKm,
+            Fee = task.Fee,
+            Status = task.Status,
+            StatusText = task.StatusText,
+            PickupCode = task.PickupCode,
+            CustomerPhoneMasked = task.CustomerPhoneMasked,
+            EstimatedMinutes = task.EstimatedMinutes,
+            PickupLocation = new Coordinates { Latitude = (double)task.PickupLatitude, Longitude = (double)task.PickupLongitude },
+            DropoffLocation = new Coordinates { Latitude = (double)task.DropoffLatitude, Longitude = (double)task.DropoffLongitude },
+            CurrentLocation = task.CurrentLatitude.HasValue && task.CurrentLongitude.HasValue
+                ? new Coordinates { Latitude = (double)task.CurrentLatitude.Value, Longitude = (double)task.CurrentLongitude.Value }
+                : null,
+        };
+    }
+
+    private static MerchantApplication MapMerchantApplication(MerchantApplicationEntity application)
+    {
+        return new MerchantApplication
+        {
+            Id = application.Id,
+            StoreName = application.StoreName,
+            ApplicantName = application.ApplicantName,
+            Category = application.Category,
+            Address = application.Address,
+            SubmittedHoursAgo = (int)Math.Max(1, (DateTimeOffset.UtcNow - application.SubmittedAtUtc).TotalHours),
+            Status = application.Status,
+        };
+    }
+
+    private static PlatformOrder MapPlatformOrder(PlatformOrderEntity order)
+    {
+        return new PlatformOrder
+        {
+            Id = order.Id,
+            StoreName = order.StoreName,
+            CustomerName = order.CustomerName,
+            RiderName = order.RiderName,
+            Status = order.Status,
+            TotalAmount = order.TotalAmount,
+            RiskLevel = order.RiskLevel,
+        };
+    }
+
+    private static AccountRecord MapAccountRecord(AccountEntity account)
+    {
+        return new AccountRecord
+        {
+            Id = account.Id,
+            Name = account.Name,
+            Role = account.Role,
+            Status = account.Status,
+        };
+    }
+
+    private static DeliveryArea MapDeliveryArea(DeliveryAreaEntity area)
+    {
+        return new DeliveryArea
+        {
+            Id = area.Id,
+            Name = area.Name,
+            RadiusKm = area.RadiusKm,
+            BaseFee = area.BaseFee,
+            IsEnabled = area.IsEnabled,
+        };
+    }
+
+    private static AdminTask MapAdminTask(AdminTaskEntity task)
+    {
+        return new AdminTask
+        {
+            Id = task.Id,
+            Title = task.Title,
+            Owner = task.Owner,
+            Status = task.Status,
+            Severity = task.Severity,
+        };
+    }
+
+    private static string ResolvePaymentStatus(string status)
+    {
+        return status switch
+        {
+            "PendingPayment" => "Pending",
+            "Canceled" => "Canceled",
+            "Refunded" => "Refunded",
+            _ => "Paid",
+        };
+    }
+
+    private static string ResolveMerchantStatusFromCustomerStatus(string status)
+    {
+        return status switch
+        {
+            "PendingPayment" => "PendingAccept",
+            "Paid" => "PendingAccept",
+            "PendingMerchantAccept" => "PendingAccept",
+            "MerchantAccepted" => "Preparing",
+            "Preparing" => "Preparing",
+            "ReadyForPickup" => "ReadyForPickup",
+            "WaitingForRider" => "ReadyForPickup",
+            "RiderAccepted" => "ReadyForPickup",
+            "RiderArrivedStore" => "ReadyForPickup",
+            "RiderPickedUp" => "PickedUp",
+            "Delivering" => "PickedUp",
+            "Completed" => "PickedUp",
+            "Rejected" => "Rejected",
+            "Refunded" => "Rejected",
+            "Canceled" => "Rejected",
+            _ => "PendingAccept",
+        };
     }
 
     public MockBusinessStateSnapshot GetMockStateSnapshot()
@@ -149,6 +1059,8 @@ public sealed class BusinessStateStore
             _deliveryAreas = BuildInitialDeliveryAreas().ToList();
             _nextCustomerOrderNumber = 3001;
             _nextDeliveryNumber = 900;
+            RefreshPrimaryStoreSeed();
+            PersistSnapshot();
         }
     }
 
@@ -272,6 +1184,7 @@ public sealed class BusinessStateStore
             };
 
             _customerOrders.Insert(0, order);
+            PersistSnapshot();
             return order;
         }
     }
@@ -326,6 +1239,7 @@ public sealed class BusinessStateStore
                 _merchantOrders.Insert(0, merchantOrder);
             }
 
+            PersistSnapshot();
             return new
             {
                 orderId,
@@ -356,6 +1270,7 @@ public sealed class BusinessStateStore
                     StatusText = CustomerStatusText["Canceled"],
                     Timeline = BuildTimeline("Canceled"),
                 };
+                PersistSnapshot();
                 return new { id = orderId, status = "Canceled" };
             }
 
@@ -380,6 +1295,7 @@ public sealed class BusinessStateStore
                     RiskLevel = "normal",
                 });
 
+                PersistSnapshot();
                 return new { id = orderId, status = "Refunded" };
             }
 
@@ -447,6 +1363,7 @@ public sealed class BusinessStateStore
                 });
             }
 
+            PersistSnapshot();
             return new
             {
                 id = orderId,
@@ -517,6 +1434,8 @@ public sealed class BusinessStateStore
                 Price = request.Price ?? current.Price,
             };
             _merchantMenuItems[index] = updated;
+            RefreshPrimaryStoreSeed();
+            PersistSnapshot();
 
             return new
             {
@@ -550,6 +1469,8 @@ public sealed class BusinessStateStore
                 })
                 .ToList();
 
+            RefreshPrimaryStoreSeed();
+            PersistSnapshot();
             return _merchantProfile;
         }
     }
@@ -625,6 +1546,7 @@ public sealed class BusinessStateStore
                     break;
             }
 
+            PersistSnapshot();
             return new
             {
                 id = deliveryId,
@@ -662,6 +1584,7 @@ public sealed class BusinessStateStore
                 }
             }
 
+            PersistSnapshot();
             return new { accepted = true };
         }
     }
@@ -687,6 +1610,7 @@ public sealed class BusinessStateStore
                 RiskLevel = "urgent",
             });
 
+            PersistSnapshot();
             return new { };
         }
     }
@@ -729,7 +1653,34 @@ public sealed class BusinessStateStore
             }
 
             _merchantApplications[index] = _merchantApplications[index] with { Status = request.Status };
+            PersistSnapshot();
             return new { id = applicationId, status = request.Status };
+        }
+    }
+
+    public object DismissPlatformOrder(string orderId)
+    {
+        lock (_gate)
+        {
+            var order = _platformOrders.FirstOrDefault(item => item.Id == orderId);
+            if (order is null)
+            {
+                throw new KeyNotFoundException("Platform order not found");
+            }
+
+            AddOrUpdatePlatformOrder(orderId, order with
+            {
+                Status = "Handled",
+                RiskLevel = "normal",
+            });
+
+            PersistSnapshot();
+            return new
+            {
+                id = orderId,
+                status = "Handled",
+                riskLevel = "normal",
+            };
         }
     }
 
@@ -773,6 +1724,7 @@ public sealed class BusinessStateStore
                 RiskLevel = "normal",
             });
 
+            PersistSnapshot();
             return new
             {
                 id = orderId,
@@ -793,6 +1745,7 @@ public sealed class BusinessStateStore
             }
 
             _accountRecords[index] = _accountRecords[index] with { Status = request.Status };
+            PersistSnapshot();
             return new { id = accountId, status = request.Status };
         }
     }
@@ -814,6 +1767,7 @@ public sealed class BusinessStateStore
                 RadiusKm = request.RadiusKm ?? _deliveryAreas[index].RadiusKm,
             };
 
+            PersistSnapshot();
             return new { id = deliveryAreaId, isEnabled = _deliveryAreas[index].IsEnabled };
         }
     }
@@ -1111,6 +2065,27 @@ public sealed class BusinessStateStore
         }
 
         return string.IsNullOrWhiteSpace(request.RiderId) ? "Assigned rider" : request.RiderId!;
+    }
+
+    private static int GetNextSequenceNumber(IEnumerable<string> ids, string prefix, int defaultValue)
+    {
+        var maxValue = defaultValue - 1;
+
+        foreach (var id in ids)
+        {
+            if (!id.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var suffix = id[prefix.Length..];
+            if (int.TryParse(suffix, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
+            {
+                maxValue = Math.Max(maxValue, value);
+            }
+        }
+
+        return maxValue + 1;
     }
 
     private static MerchantMenuItem ToMerchantMenuItem(MenuItem item)

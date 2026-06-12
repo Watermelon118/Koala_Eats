@@ -60,6 +60,12 @@ public sealed class AdminController : ApiControllerBase
         return Execute(() => _stateStore.AssignRider(orderId, request));
     }
 
+    [HttpPatch("orders/{orderId}/dismiss")]
+    public IActionResult DismissPlatformOrder([FromRoute] string orderId)
+    {
+        return Execute(() => _stateStore.DismissPlatformOrder(orderId));
+    }
+
     [HttpPatch("accounts/{accountId}/status")]
     public IActionResult UpdateAccountStatus([FromRoute] string accountId, [FromBody] UpdateAccountStatusRequest request)
     {

@@ -1049,3 +1049,47 @@ Response `200`:
   }
 }
 ```
+
+### PATCH `/api/rider/deliveries/{deliveryId}/issue`
+
+状态：`Done`
+
+用途：骑手上报配送异常，平台将对应订单转入异常池。
+
+Request:
+
+```json
+{
+  "reason": "联系不上顾客"
+}
+```
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": {}
+}
+```
+
+### PATCH `/api/admin/orders/{orderId}/dismiss`
+
+状态：`Done`
+
+用途：管理端关闭已处理的异常订单。
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": {
+    "id": "KE-2047",
+    "status": "Handled",
+    "riskLevel": "normal"
+  }
+}
+```

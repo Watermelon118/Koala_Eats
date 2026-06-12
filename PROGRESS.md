@@ -53,3 +53,4 @@
 
 2026-06-12: ASP.NET Core in-memory API is live on 5156; next step is switching client mockApi.ts to the real routes.
 2026-06-12: SQL Server schema baseline created with EF Core InitialCreate migration and applied locally as empty tables.
+2026-06-12: Frontend now targets the real ASP.NET Core API on localhost:5156; mutation helpers refresh state from the backend snapshot after each successful action, and rider/admin dismiss flows are wired end-to-end.

@@ -33,7 +33,7 @@ npm run dev:admin
 
 同局域网设备访问：
 
-- `http://192.168.88.100:5173`
-- `http://192.168.88.100:5174`
-- `http://192.168.88.100:5175`
-- `http://192.168.88.100:5176`
+- `http://localhost:5173`
+- `http://localhost:5174`
+- `http://localhost:5175`
+- `http://localhost:5176`
