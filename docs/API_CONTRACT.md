@@ -15,6 +15,91 @@
 - `Mocked`：前端已有 mock data，后端尚未完成。
 - `Done`：后端已实现，前端已删除对应 mock。
 
+## 开发期共享 Mock API
+
+状态：`Mocked`
+
+用途：前端业务完全跑通前，四个独立 Web 应用通过开发期 mock 服务共享订单、商家订单、配送单、异常订单、账号和配送区域状态。该服务不是正式后端实现，后续由 ASP.NET Core Web API 按本文档契约逐个替换。
+
+Base URL：
+
+```json
+{
+  "mockApiBaseUrl": "http://192.168.88.100:5180"
+}
+```
+
+前端通过 `VITE_MOCK_API_BASE_URL` 可覆盖默认地址。
+
+### GET `/api/mock/state`
+
+状态：`Mocked`
+
+用途：四端读取同一份 mock 业务状态。
+
+Response `200`：
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": {
+    "customerOrders": [],
+    "merchantOrders": [],
+    "merchantMenuItems": [],
+    "merchantProfile": {},
+    "deliveryTasks": [],
+    "merchantApplications": [],
+    "platformOrders": [],
+    "accountRecords": [],
+    "deliveryAreas": []
+  }
+}
+```
+
+### POST `/api/mock/reset`
+
+状态：`Mocked`
+
+用途：重置开发期 mock 业务状态，方便重复验证完整流程。
+
+### 状态机规则
+
+用户订单主状态：
+
+```text
+PendingPayment -> PendingMerchantAccept -> Preparing -> WaitingForRider -> RiderAccepted -> RiderArrivedStore -> RiderPickedUp -> Delivering -> Completed
+```
+
+异常分支：
+
+```text
+PendingPayment -> Canceled
+PendingMerchantAccept -> Refunded
+```
+
+商家端只能推进：
+
+```text
+PendingAccept -> Preparing -> ReadyForPickup
+PendingAccept -> Rejected
+```
+
+骑手端只能推进：
+
+```text
+Available -> Accepted -> ArrivedStore -> PickedUp -> Delivering -> Delivered
+```
+
+补充业务规则：
+
+- 用户端提交订单前必须用店铺坐标和收货地址坐标计算配送距离；超过 `deliveryRadiusKm` 时前端禁用下单，后端必须返回 `DELIVERY_OUT_OF_RANGE`。
+- 菜品可带 `optionGroups`，用于规格、口味、加料等单选项；购物车必须按 `cartKey = menuItemId + selectedOptions` 拆行，同菜品不同规格不能合并。
+- 订单行必须保存用户选择的 `selectedOptions`、最终 `unitPrice` 和 `cartKey`，供商家小票、退款和后端订单明细表使用。
+- 用户取消规则：`PendingPayment` 可直接取消为 `Canceled`；支付倒计时结束后也按该规则自动取消；`Paid` / `PendingMerchantAccept` 可自动退款为 `Refunded`；商家已接单、备餐、骑手配送后不自动取消，后续进入人工售后/退款流程。
+- 骑手端异常上报进入 `platformOrders` 异常池，由管理端人工派单、关闭异常或后续售后处理。
+- 管理端配送区域可调整启停状态、服务半径和起步配送费；后端实现时需要把区域规则和店铺配送半径、用户地址坐标统一校验。
+
 ## 通用约定
 
 ### Base URL
@@ -79,6 +164,42 @@
 }
 ```
 
+## Google Maps Address Service
+
+状态：`Mocked`
+
+用途：前端地址输入使用 Google Maps JavaScript API 的 Places Autocomplete Data API 直接提供 New Zealand 地址联想。真实 Google Maps API key 不写进仓库，前端通过 `VITE_GOOGLE_MAPS_API_KEY` 读取。
+
+前端配置：
+
+```json
+{
+  "VITE_GOOGLE_MAPS_API_KEY": "local-only-secret"
+}
+```
+
+约束：
+
+- 地址联想只在用户输入 3 个字符以上时触发。
+- 请求使用 session token 聚合同一次输入和选中行为。
+- 结果限制为 New Zealand：`includedRegionCodes: ["nz"]`，并使用 NZ 附近 `locationRestriction`。
+- 选中地址后必须读取 `formattedAddress` 和 `location`，存入业务状态时使用统一坐标结构。
+- API key 必须在 Google Cloud 中限制 HTTP referrer，并启用 Maps JavaScript API 和 Places API。
+
+前端选中地址后的结构：
+
+```json
+{
+  "placeId": "google-place-id",
+  "displayName": "Queen Street",
+  "formattedAddress": "Queen Street, Auckland CBD, Auckland, New Zealand",
+  "coordinates": {
+    "latitude": -36.8485,
+    "longitude": 174.7633
+  }
+}
+```
+
 ## Health
 
 ### GET `/api/health`
@@ -110,7 +231,7 @@ Response `200`:
 
 #### GET `/api/customer/stores`
 
-状态：`Mocked`
+状态：`Done`
 
 用途：用户端首页获取附近商家列表。
 
@@ -141,7 +262,12 @@ Response `200`:
       "deliveryFee": 2.99,
       "distanceKm": 1.4,
       "promotion": "满 $35 减 $6",
-      "coverTone": "rice"
+      "coverTone": "rice",
+      "deliveryRadiusKm": 4.5,
+      "location": {
+        "latitude": -36.8478,
+        "longitude": 174.765
+      }
     }
   ]
 }
@@ -149,7 +275,7 @@ Response `200`:
 
 #### GET `/api/customer/stores/{storeId}`
 
-状态：`Mocked`
+状态：`Done`
 
 用途：用户端进入商家详情页。
 
@@ -169,7 +295,12 @@ Response `200`:
     "deliveryFee": 2.99,
     "distanceKm": 1.4,
     "promotion": "满 $35 减 $6",
-    "coverTone": "rice"
+    "coverTone": "rice",
+    "deliveryRadiusKm": 4.5,
+    "location": {
+      "latitude": -36.8478,
+      "longitude": 174.765
+    }
   }
 }
 ```
@@ -178,7 +309,7 @@ Response `200`:
 
 #### GET `/api/customer/stores/{storeId}/menu`
 
-状态：`Mocked`
+状态：`Done`
 
 用途：用户端进入商家后获取菜单。
 
@@ -195,7 +326,18 @@ Response `200`:
       "description": "去骨鸡腿、溏心蛋、时蔬、秘制照烧汁",
       "price": 16.8,
       "monthlySales": 420,
-      "tag": "招牌"
+      "tag": "招牌",
+      "optionGroups": [
+        {
+          "id": "rice-size",
+          "name": "饭量",
+          "required": true,
+          "options": [
+            { "id": "regular", "name": "标准", "priceDelta": 0 },
+            { "id": "large", "name": "加饭", "priceDelta": 1.5 }
+          ]
+        }
+      ]
     }
   ]
 }
@@ -205,7 +347,7 @@ Response `200`:
 
 #### POST `/api/customer/orders/preview`
 
-状态：`Mocked`
+状态：`Done`
 
 用途：用户端购物车计算价格预览。
 
@@ -240,7 +382,7 @@ Response `200`:
 
 #### POST `/api/customer/orders`
 
-状态：`Mocked`
+状态：`Done`
 
 用途：用户端提交订单。订单创建后进入待支付状态。
 
@@ -249,20 +391,79 @@ Request:
 ```json
 {
   "storeId": "store-koala-bowl",
-  "addressId": "address-home",
+  "storeName": "考拉能量饭",
+  "storeLocation": {
+    "latitude": -36.8478,
+    "longitude": 174.765
+  },
+  "deliveryRadiusKm": 4.5,
+  "address": {
+    "id": "address-home",
+    "label": "家",
+    "addressLine": "12 Queen Street, Auckland CBD",
+    "coordinates": {
+      "latitude": -36.8489,
+      "longitude": 174.7633
+    }
+  },
   "items": [
     {
       "menuItemId": "bowl-teriyaki",
-      "quantity": 2
+      "quantity": 2,
+      "cartKey": "bowl-teriyaki::flavor:less-salt|rice-size:large",
+      "unitPrice": 18.3,
+      "selectedOptions": [
+        {
+          "groupId": "rice-size",
+          "groupName": "饭量",
+          "id": "large",
+          "name": "加饭",
+          "priceDelta": 1.5
+        }
+      ]
     }
   ],
   "remark": "少盐"
 }
 ```
 
+#### PATCH `/api/mock/rider/deliveries/{deliveryId}/issue`
+
+状态：`Done`
+
+用途：骑手上报配送异常，例如联系不上顾客、商家未出餐、地址异常、餐品破损。上报后对应订单进入平台异常池。
+
+Request:
+
+```json
+{
+  "reason": "联系不上顾客"
+}
+```
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": {}
+}
+```
+
+Response `400` when the address is outside delivery range:
+
+```json
+{
+  "code": "DELIVERY_OUT_OF_RANGE",
+  "message": "Delivery address is outside this store delivery range",
+  "data": null
+}
+```
+
 #### POST `/api/customer/orders/{orderId}/mock-payment`
 
-状态：`Mocked`
+状态：`Done`
 
 用途：用户端模拟支付。真实支付暂不接入，点击模拟支付后订单进入已支付并继续流转。
 
@@ -288,9 +489,38 @@ Response `200`:
 }
 ```
 
+#### POST `/api/customer/orders/{orderId}/cancel`
+
+状态：`Done`
+
+用途：用户端取消订单。待支付订单直接取消；已支付但商家未开始履约的订单自动退款；履约中订单不自动取消。
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": {
+    "id": "order-1001",
+    "status": "Canceled"
+  }
+}
+```
+
+Response `409`:
+
+```json
+{
+  "code": "ORDER_CANNOT_CANCEL",
+  "message": "Order can no longer be cancelled automatically",
+  "data": null
+}
+```
+
 #### GET `/api/customer/orders/{orderId}`
 
-状态：`Mocked`
+状态：`Done`
 
 用途：用户端查看订单详情、订单进度、骑手位置和预计送达时间。
 
@@ -334,7 +564,7 @@ Response `200`:
 
 ### GET `/api/merchant/dashboard`
 
-状态：`Mocked`
+状态：`Done`
 
 用途：商家端首页获取店铺概览、今日指标和位置摘要。
 
@@ -365,7 +595,7 @@ Response `200`:
 
 ### GET `/api/merchant/orders`
 
-状态：`Mocked`
+状态：`Done`
 
 用途：商家端首页订单队列。
 
@@ -390,7 +620,7 @@ Response `200`:
 
 ### PATCH `/api/merchant/orders/{orderId}/status`
 
-状态：`Mocked`
+状态：`Done`
 
 用途：商家接单、拒单、更新备餐和待取餐状态。
 
@@ -418,7 +648,7 @@ Response `200`:
 
 ### GET `/api/merchant/menu-items`
 
-状态：`Mocked`
+状态：`Done`
 
 用途：商家端首页菜品管理列表。
 
@@ -442,7 +672,7 @@ Response `200`:
 
 ### PATCH `/api/merchant/menu-items/{menuItemId}`
 
-状态：`Mocked`
+状态：`Done`
 
 用途：商家修改菜品上架状态、库存、价格等信息。
 
@@ -473,7 +703,7 @@ Response `200`:
 
 ### PATCH `/api/merchant/store-profile`
 
-状态：`Mocked`
+状态：`Done`
 
 用途：商家维护店铺资料、营业状态、营业时间、公告、配送范围和位置。
 
@@ -505,7 +735,7 @@ Response `200`:
 
 ### GET `/api/rider/dashboard`
 
-状态：`Mocked`
+状态：`Done`
 
 用途：骑手端首页获取接单概览。
 
@@ -526,7 +756,7 @@ Response `200`:
 
 ### GET `/api/rider/deliveries`
 
-状态：`Mocked`
+状态：`Done`
 
 用途：骑手端首页配送单列表。
 
@@ -551,7 +781,7 @@ Response `200`:
 
 ### PATCH `/api/rider/deliveries/{deliveryId}/status`
 
-状态：`Mocked`
+状态：`Done`
 
 用途：骑手接单、到店、取餐、配送中、送达的状态流转。
 
@@ -583,7 +813,7 @@ Response `200`:
 
 ### POST `/api/rider/location-reports`
 
-状态：`Mocked`
+状态：`Done`
 
 用途：骑手上报当前位置，用于用户端订单地图追踪。
 
@@ -616,7 +846,7 @@ Response `200`:
 
 ### GET `/api/admin/dashboard`
 
-状态：`Mocked`
+状态：`Done`
 
 用途：管理端首页获取平台指标。
 
@@ -637,7 +867,7 @@ Response `200`:
 
 ### GET `/api/admin/tasks`
 
-状态：`Mocked`
+状态：`Done`
 
 用途：管理端首页待处理事项。
 
@@ -661,7 +891,7 @@ Response `200`:
 
 ### GET `/api/admin/merchant-applications`
 
-状态：`Mocked`
+状态：`Done`
 
 用途：管理端查看商家入驻审核列表。
 
@@ -686,7 +916,7 @@ Response `200`:
 
 ### PATCH `/api/admin/merchant-applications/{applicationId}/status`
 
-状态：`Mocked`
+状态：`Done`
 
 用途：管理端通过或拒绝商家入驻审核。
 
@@ -713,7 +943,7 @@ Response `200`:
 
 ### GET `/api/admin/orders`
 
-状态：`Mocked`
+状态：`Done`
 
 用途：管理端查看订单列表和异常订单。
 
@@ -738,7 +968,7 @@ Response `200`:
 
 ### PATCH `/api/admin/orders/{orderId}/assign-rider`
 
-状态：`Mocked`
+状态：`Done`
 
 用途：自动派单失败时，管理端人工指定骑手。
 
@@ -766,7 +996,7 @@ Response `200`:
 
 ### PATCH `/api/admin/accounts/{accountId}/status`
 
-状态：`Mocked`
+状态：`Done`
 
 用途：管理端冻结或解冻用户、商家、骑手账号。
 
@@ -793,7 +1023,7 @@ Response `200`:
 
 ### PATCH `/api/admin/delivery-areas/{deliveryAreaId}`
 
-状态：`Mocked`
+状态：`Done`
 
 用途：管理端维护配送区域、起步配送费和启停状态。
 
