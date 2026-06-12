@@ -14,80 +14,76 @@ import {
 } from 'lucide-react'
 import { formatMoney } from '../../shared/format'
 import {
-  accountRecords,
   adminTasks,
-  deliveryAreas,
-  merchantApplications,
-  platformOrders,
+  initialMockBusinessState,
 } from '../../shared/mockData'
+import {
+  assignMockRider,
+  dismissMockPlatformOrder,
+  updateMockAccountStatus,
+  updateMockDeliveryArea,
+  updateMockMerchantApplicationStatus,
+} from '../../shared/mockApi'
 import type {
   AccountRecord,
   DeliveryArea,
   MerchantApplication,
-  PlatformOrder,
 } from '../../shared/types'
+import { useMockBusinessState } from '../../shared/useMockBusinessState'
 
 type AdminTab = 'reviews' | 'orders' | 'accounts' | 'areas'
 
 function App() {
+  const { errorMessage, setState: setMockState, state: mockState } =
+    useMockBusinessState(initialMockBusinessState)
   const [activeTab, setActiveTab] = useState<AdminTab>('reviews')
-  const [applications, setApplications] = useState<MerchantApplication[]>(merchantApplications)
-  const [orders, setOrders] = useState<PlatformOrder[]>(platformOrders)
-  const [accounts, setAccounts] = useState<AccountRecord[]>(accountRecords)
-  const [areas, setAreas] = useState<DeliveryArea[]>(deliveryAreas)
+  const applications = mockState.merchantApplications
+  const orders = mockState.platformOrders
+  const accounts = mockState.accountRecords
+  const areas = mockState.deliveryAreas
 
   const pendingMerchantReviews = applications.filter((item) => item.status === 'Pending').length
   const abnormalOrders = orders.filter((order) => order.riskLevel !== 'normal').length
   const onlineRiders = accounts.filter((account) => account.role === 'Rider' && account.status === 'Active').length
   const todayOrders = 128
 
-  function updateApplicationStatus(applicationId: string, status: MerchantApplication['status']) {
-    setApplications((currentApplications) =>
-      currentApplications.map((application) =>
-        application.id === applicationId ? { ...application, status } : application,
-      ),
-    )
+  async function updateApplicationStatus(applicationId: string, status: MerchantApplication['status']) {
+    const nextState = await updateMockMerchantApplicationStatus(applicationId, status)
+    setMockState(nextState)
   }
 
-  function assignRider(orderId: string) {
-    setOrders((currentOrders) =>
-      currentOrders.map((order) =>
-        order.id === orderId
-          ? {
-              ...order,
-              riderName: 'Liam',
-              status: '已人工派单',
-              riskLevel: 'normal',
-            }
-          : order,
-      ),
-    )
+  async function assignRider(orderId: string) {
+    const nextState = await assignMockRider(orderId)
+    setMockState(nextState)
   }
 
-  function toggleAccountStatus(accountId: string) {
-    setAccounts((currentAccounts) =>
-      currentAccounts.map((account) =>
-        account.id === accountId
-          ? {
-              ...account,
-              status: account.status === 'Frozen' ? 'Active' : 'Frozen',
-            }
-          : account,
-      ),
-    )
+  async function dismissOrder(orderId: string) {
+    const nextState = await dismissMockPlatformOrder(orderId)
+    setMockState(nextState)
   }
 
-  function toggleArea(areaId: string) {
-    setAreas((currentAreas) =>
-      currentAreas.map((area) =>
-        area.id === areaId
-          ? {
-              ...area,
-              isEnabled: !area.isEnabled,
-            }
-          : area,
-      ),
+  async function toggleAccountStatus(account: AccountRecord) {
+    const nextState = await updateMockAccountStatus(
+      account.id,
+      account.status === 'Frozen' ? 'Active' : 'Frozen',
     )
+    setMockState(nextState)
+  }
+
+  async function toggleArea(area: DeliveryArea) {
+    const nextState = await updateMockDeliveryArea({
+      ...area,
+      isEnabled: !area.isEnabled,
+    })
+    setMockState(nextState)
+  }
+
+  async function updateArea(area: DeliveryArea, patch: Partial<DeliveryArea>) {
+    const nextState = await updateMockDeliveryArea({
+      ...area,
+      ...patch,
+    })
+    setMockState(nextState)
   }
 
   return (
@@ -147,6 +143,8 @@ function App() {
         ))}
       </nav>
 
+      {errorMessage && <div className="mock-alert">Mock API 未连接：{errorMessage}</div>}
+
       <section className="admin-grid">
         <aside className="panel">
           <div className="panel-title">
@@ -187,7 +185,7 @@ function App() {
                       <button
                         className="primary-button"
                         disabled={application.status !== 'Pending'}
-                        onClick={() => updateApplicationStatus(application.id, 'Approved')}
+                        onClick={() => void updateApplicationStatus(application.id, 'Approved')}
                         type="button"
                       >
                         <CheckCircle2 size={16} strokeWidth={2.4} />
@@ -196,7 +194,7 @@ function App() {
                       <button
                         className="danger-button"
                         disabled={application.status !== 'Pending'}
-                        onClick={() => updateApplicationStatus(application.id, 'Rejected')}
+                        onClick={() => void updateApplicationStatus(application.id, 'Rejected')}
                         type="button"
                       >
                         <XCircle size={16} strokeWidth={2.4} />
@@ -226,9 +224,12 @@ function App() {
                     </div>
                     <small>{formatMoney(order.totalAmount)}</small>
                     <div className="row-actions">
-                      <button className="primary-button" onClick={() => assignRider(order.id)} type="button">
+                      <button className="primary-button" onClick={() => void assignRider(order.id)} type="button">
                         <Truck size={16} strokeWidth={2.4} />
                         指定骑手
+                      </button>
+                      <button className="dark-button" onClick={() => void dismissOrder(order.id)} type="button">
+                        关闭异常
                       </button>
                     </div>
                   </article>
@@ -253,7 +254,7 @@ function App() {
                         {account.role} · {account.status}
                       </span>
                     </div>
-                    <button className="dark-button" onClick={() => toggleAccountStatus(account.id)} type="button">
+                    <button className="dark-button" onClick={() => void toggleAccountStatus(account)} type="button">
                       {account.status === 'Frozen' ? '解冻' : '冻结'}
                     </button>
                   </article>
@@ -270,7 +271,7 @@ function App() {
               </div>
               <div className="account-grid">
                 {areas.map((area) => (
-                  <article key={area.id}>
+                  <article className="area-card" key={area.id}>
                     <MapPinned size={22} strokeWidth={2.4} />
                     <div>
                       <strong>{area.name}</strong>
@@ -278,8 +279,36 @@ function App() {
                         {area.radiusKm} km · 起步配送费 {formatMoney(area.baseFee)}
                       </span>
                     </div>
-                    <button className="dark-button" onClick={() => toggleArea(area.id)} type="button">
+                    <button className="dark-button" onClick={() => void toggleArea(area)} type="button">
                       {area.isEnabled ? '停用' : '启用'}
+                    </button>
+                    <button
+                      className="dark-button"
+                      onClick={() => void updateArea(area, { radiusKm: Math.max(1, area.radiusKm - 0.5) })}
+                      type="button"
+                    >
+                      半径-
+                    </button>
+                    <button
+                      className="dark-button"
+                      onClick={() => void updateArea(area, { radiusKm: area.radiusKm + 0.5 })}
+                      type="button"
+                    >
+                      半径+
+                    </button>
+                    <button
+                      className="dark-button"
+                      onClick={() => void updateArea(area, { baseFee: Math.max(0, area.baseFee - 0.5) })}
+                      type="button"
+                    >
+                      费用-
+                    </button>
+                    <button
+                      className="dark-button"
+                      onClick={() => void updateArea(area, { baseFee: area.baseFee + 0.5 })}
+                      type="button"
+                    >
+                      费用+
                     </button>
                   </article>
                 ))}

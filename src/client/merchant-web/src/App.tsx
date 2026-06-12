@@ -15,15 +15,26 @@ import {
   XCircle,
 } from 'lucide-react'
 import { formatMoney } from '../../shared/format'
-import { merchantMenuItems, merchantOrders, merchantProfile } from '../../shared/mockData'
-import type { MerchantMenuItem, MerchantOrder, MerchantOrderStatus } from '../../shared/types'
+import {
+  updateMockMenuItem,
+  updateMockMerchantOrderStatus,
+  updateMockMerchantProfile,
+} from '../../shared/mockApi'
+import { initialMockBusinessState } from '../../shared/mockData'
+import { GoogleAddressAutocomplete } from '../../shared/GoogleAddressAutocomplete'
+import type {
+  GoogleResolvedAddress,
+  MerchantMenuItem,
+  MerchantOrder,
+  MerchantOrderStatus,
+} from '../../shared/types'
+import { useMockBusinessState } from '../../shared/useMockBusinessState'
 
 type MerchantTab = 'orders' | 'menu' | 'store'
 
 const nextOrderStatus: Partial<Record<MerchantOrderStatus, MerchantOrderStatus>> = {
   PendingAccept: 'Preparing',
   Preparing: 'ReadyForPickup',
-  ReadyForPickup: 'PickedUp',
 }
 
 const orderStatusText: Record<MerchantOrderStatus, string> = {
@@ -35,12 +46,14 @@ const orderStatusText: Record<MerchantOrderStatus, string> = {
 }
 
 function App() {
+  const { errorMessage, setState: setMockState, state: mockState } =
+    useMockBusinessState(initialMockBusinessState)
   const [activeTab, setActiveTab] = useState<MerchantTab>('orders')
-  const [isOpen, setIsOpen] = useState(merchantProfile.isOpen)
-  const [orders, setOrders] = useState<MerchantOrder[]>(merchantOrders)
-  const [menuItems, setMenuItems] = useState<MerchantMenuItem[]>(merchantMenuItems)
-  const [selectedOrderId, setSelectedOrderId] = useState(orders[0]?.id ?? '')
+  const [selectedOrderId, setSelectedOrderId] = useState(mockState.merchantOrders[0]?.id ?? '')
 
+  const merchantProfile = mockState.merchantProfile
+  const orders = mockState.merchantOrders
+  const menuItems = mockState.merchantMenuItems
   const selectedOrder = orders.find((order) => order.id === selectedOrderId) ?? orders[0]
   const pendingOrders = orders.filter((order) => order.status === 'PendingAccept').length
   const preparingOrders = orders.filter((order) => order.status === 'Preparing').length
@@ -56,52 +69,50 @@ function App() {
     }, {})
   }, [menuItems])
 
-  function updateOrderStatus(orderId: string, status: MerchantOrderStatus) {
-    setOrders((currentOrders) =>
-      currentOrders.map((order) =>
-        order.id === orderId
-          ? {
-              ...order,
-              status,
-              statusText: orderStatusText[status],
-            }
-          : order,
-      ),
-    )
+  async function updateOrderStatus(orderId: string, status: MerchantOrderStatus) {
+    const nextState = await updateMockMerchantOrderStatus(orderId, status)
+    setMockState(nextState)
   }
 
-  function moveOrderForward(order: MerchantOrder) {
+  async function moveOrderForward(order: MerchantOrder) {
     const nextStatus = nextOrderStatus[order.status]
 
     if (nextStatus) {
-      updateOrderStatus(order.id, nextStatus)
+      await updateOrderStatus(order.id, nextStatus)
     }
   }
 
-  function toggleMenuItem(itemId: string) {
-    setMenuItems((currentItems) =>
-      currentItems.map((item) =>
-        item.id === itemId
-          ? {
-              ...item,
-              isAvailable: !item.isAvailable,
-            }
-          : item,
-      ),
-    )
+  async function toggleMenuItem(item: MerchantMenuItem) {
+    const nextState = await updateMockMenuItem({
+      ...item,
+      isAvailable: !item.isAvailable,
+    })
+    setMockState(nextState)
   }
 
-  function changeStock(itemId: string, delta: number) {
-    setMenuItems((currentItems) =>
-      currentItems.map((item) =>
-        item.id === itemId
-          ? {
-              ...item,
-              stock: Math.max(item.stock + delta, 0),
-            }
-          : item,
-      ),
-    )
+  async function changeStock(item: MerchantMenuItem, delta: number) {
+    const nextState = await updateMockMenuItem({
+      ...item,
+      stock: Math.max(item.stock + delta, 0),
+    })
+    setMockState(nextState)
+  }
+
+  async function selectStoreAddress(address: GoogleResolvedAddress) {
+    const nextState = await updateMockMerchantProfile({
+      ...merchantProfile,
+      address: address.formattedAddress,
+      coordinates: address.coordinates,
+    })
+    setMockState(nextState)
+  }
+
+  async function updateStoreProfilePatch(patch: Partial<typeof merchantProfile>) {
+    const nextState = await updateMockMerchantProfile({
+      ...merchantProfile,
+      ...patch,
+    })
+    setMockState(nextState)
   }
 
   return (
@@ -118,9 +129,13 @@ function App() {
           <Store size={18} strokeWidth={2.4} />
           <span>{merchantProfile.name}</span>
         </div>
-        <button className={`header-pill status-toggle ${isOpen ? 'open' : ''}`} onClick={() => setIsOpen(!isOpen)} type="button">
+        <button
+          className={`header-pill status-toggle ${merchantProfile.isOpen ? 'open' : ''}`}
+          onClick={() => void updateStoreProfilePatch({ isOpen: !merchantProfile.isOpen })}
+          type="button"
+        >
           <Power size={18} strokeWidth={2.4} />
-          {isOpen ? '营业中' : '已打烊'}
+          {merchantProfile.isOpen ? '营业中' : '已打烊'}
         </button>
       </header>
 
@@ -179,6 +194,8 @@ function App() {
         ))}
       </nav>
 
+      {errorMessage && <div className="mock-alert">Mock API 未连接：{errorMessage}</div>}
+
       {activeTab === 'orders' && (
         <section className="merchant-grid">
           <div className="panel">
@@ -230,10 +247,15 @@ function App() {
               </div>
               <div className="order-items">
                 {selectedOrder.items.map((item) => (
-                  <div key={item.id}>
-                    <span>{item.name}</span>
+                  <div key={item.cartKey ?? item.id}>
+                    <span>
+                      {item.name}
+                      {item.selectedOptions && item.selectedOptions.length > 0 && (
+                        <small>{item.selectedOptions.map((option) => option.name).join(' / ')}</small>
+                      )}
+                    </span>
                     <strong>
-                      x{item.quantity} · {formatMoney(item.price * item.quantity)}
+                      x{item.quantity} · {formatMoney((item.unitPrice ?? item.price) * item.quantity)}
                     </strong>
                   </div>
                 ))}
@@ -242,7 +264,7 @@ function App() {
                 {selectedOrder.status === 'PendingAccept' && (
                   <button
                     className="danger-button"
-                    onClick={() => updateOrderStatus(selectedOrder.id, 'Rejected')}
+                    onClick={() => void updateOrderStatus(selectedOrder.id, 'Rejected')}
                     type="button"
                   >
                     <XCircle size={18} strokeWidth={2.4} />
@@ -252,7 +274,7 @@ function App() {
                 <button
                   className="primary-button"
                   disabled={!nextOrderStatus[selectedOrder.status] && selectedOrder.status !== 'PendingAccept'}
-                  onClick={() => moveOrderForward(selectedOrder)}
+                  onClick={() => void moveOrderForward(selectedOrder)}
                   type="button"
                 >
                   <CheckCircle2 size={18} strokeWidth={2.4} />
@@ -291,15 +313,15 @@ function App() {
                       </div>
                       <strong>{formatMoney(item.price)}</strong>
                       <div className="stock-control">
-                        <button onClick={() => changeStock(item.id, -1)} type="button">
+                        <button onClick={() => void changeStock(item, -1)} type="button">
                           <Minus size={14} strokeWidth={2.6} />
                         </button>
                         <span>{item.stock}</span>
-                        <button onClick={() => changeStock(item.id, 1)} type="button">
+                        <button onClick={() => void changeStock(item, 1)} type="button">
                           <Plus size={14} strokeWidth={2.6} />
                         </button>
                       </div>
-                      <button className="icon-toggle" onClick={() => toggleMenuItem(item.id)} type="button">
+                      <button className="icon-toggle" onClick={() => void toggleMenuItem(item)} type="button">
                         {item.isAvailable ? <ToggleRight size={30} /> : <ToggleLeft size={30} />}
                       </button>
                     </article>
@@ -317,20 +339,59 @@ function App() {
             <h2>店铺资料</h2>
             <label>
               店铺名称
-              <input value={merchantProfile.name} readOnly />
+              <input
+                defaultValue={merchantProfile.name}
+                onBlur={(event) => void updateStoreProfilePatch({ name: event.currentTarget.value })}
+              />
             </label>
+            <GoogleAddressAutocomplete
+              initialValue={merchantProfile.address}
+              label="店铺地址"
+              onSelect={(address) => void selectStoreAddress(address)}
+              placeholder="输入 NZ 店铺地址，例如 Queen Street"
+            />
             <label>
               营业时间
-              <input value={merchantProfile.openingHours} readOnly />
+              <input
+                defaultValue={merchantProfile.openingHours}
+                onBlur={(event) => void updateStoreProfilePatch({ openingHours: event.currentTarget.value })}
+              />
             </label>
             <label>
               店铺公告
-              <textarea value={merchantProfile.announcement} readOnly />
+              <textarea
+                defaultValue={merchantProfile.announcement}
+                onBlur={(event) => void updateStoreProfilePatch({ announcement: event.currentTarget.value })}
+              />
             </label>
             <label>
               配送范围
-              <input value={`${merchantProfile.deliveryRadiusKm} km`} readOnly />
+              <span className="readonly-field">{merchantProfile.deliveryRadiusKm} km</span>
             </label>
+            <div className="settings-actions">
+              <button
+                className="light-button"
+                onClick={() =>
+                  void updateStoreProfilePatch({
+                    deliveryRadiusKm: Math.max(1, Number((merchantProfile.deliveryRadiusKm - 0.5).toFixed(1))),
+                  })
+                }
+                type="button"
+              >
+                缩小配送范围
+              </button>
+              <button
+                className="light-button"
+                onClick={() =>
+                  void updateStoreProfilePatch({
+                    deliveryRadiusKm: Number((merchantProfile.deliveryRadiusKm + 0.5).toFixed(1)),
+                  })
+                }
+                type="button"
+              >
+                扩大配送范围
+              </button>
+            </div>
           </div>
 
           <div className="panel location-panel">
@@ -338,7 +399,7 @@ function App() {
             <div>
               <h2>店铺位置</h2>
               <p>{merchantProfile.address}</p>
-              <span>后续接 Google Maps 维护店铺坐标和配送范围。</span>
+              <span>通过 Google 地址联想维护店铺坐标，配送范围在店铺资料中调整。</span>
             </div>
           </div>
 
@@ -348,6 +409,30 @@ function App() {
               <h2>出餐设置</h2>
               <p>平均 {merchantProfile.averagePreparationMinutes} 分钟出餐</p>
               <span>商家接单后，订单会进入备餐中，再变更为待骑手取餐。</span>
+              <div className="settings-actions">
+                <button
+                  className="light-button"
+                  onClick={() =>
+                    void updateStoreProfilePatch({
+                      averagePreparationMinutes: Math.max(5, merchantProfile.averagePreparationMinutes - 1),
+                    })
+                  }
+                  type="button"
+                >
+                  减 1 分钟
+                </button>
+                <button
+                  className="light-button"
+                  onClick={() =>
+                    void updateStoreProfilePatch({
+                      averagePreparationMinutes: merchantProfile.averagePreparationMinutes + 1,
+                    })
+                  }
+                  type="button"
+                >
+                  加 1 分钟
+                </button>
+              </div>
             </div>
           </div>
         </section>

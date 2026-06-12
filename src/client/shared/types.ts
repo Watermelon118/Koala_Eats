@@ -3,6 +3,13 @@ export type Coordinates = {
   longitude: number
 }
 
+export type GoogleResolvedAddress = {
+  placeId: string
+  displayName: string
+  formattedAddress: string
+  coordinates: Coordinates
+}
+
 export type StoreCoverTone = 'rice' | 'burger' | 'tea' | 'sushi'
 
 export type StoreSummary = {
@@ -21,6 +28,7 @@ export type StoreSummary = {
   announcement: string
   minOrderAmount: number
   averagePrice: number
+  deliveryRadiusKm: number
   serviceTags: string[]
   location: Coordinates
   menuCategories: MenuCategory[]
@@ -43,12 +51,42 @@ export type MenuItem = {
   stock: number
   isAvailable: boolean
   imageTone: StoreCoverTone
+  optionGroups?: MenuOptionGroup[]
 }
 
-export type Cart = Record<string, number>
+export type MenuOptionGroup = {
+  id: string
+  name: string
+  required: boolean
+  options: MenuOption[]
+}
+
+export type MenuOption = {
+  id: string
+  name: string
+  priceDelta: number
+}
+
+export type SelectedMenuOption = MenuOption & {
+  groupId: string
+  groupName: string
+}
+
+export type SelectedOptionsByItem = Record<string, SelectedMenuOption[]>
+
+export type CartEntry = {
+  itemId: string
+  quantity: number
+  selectedOptions: SelectedMenuOption[]
+}
+
+export type Cart = Record<string, CartEntry>
 
 export type CartLine = MenuItem & {
+  cartKey: string
   quantity: number
+  selectedOptions?: SelectedMenuOption[]
+  unitPrice?: number
 }
 
 export type CustomerAddress = {
@@ -58,6 +96,7 @@ export type CustomerAddress = {
   phoneMasked: string
   addressLine: string
   detail: string
+  placeId?: string
   coordinates: Coordinates
 }
 
@@ -79,12 +118,19 @@ export type OrderPricePreview = {
 export type CustomerOrderStatus =
   | 'PendingPayment'
   | 'Paid'
+  | 'PendingMerchantAccept'
   | 'MerchantAccepted'
   | 'Preparing'
+  | 'ReadyForPickup'
   | 'WaitingForRider'
+  | 'RiderAccepted'
+  | 'RiderArrivedStore'
   | 'RiderPickedUp'
   | 'Delivering'
   | 'Completed'
+  | 'Rejected'
+  | 'Refunded'
+  | 'Canceled'
 
 export type OrderTimelineStep = {
   key: CustomerOrderStatus
@@ -98,6 +144,8 @@ export type CustomerOrder = {
   id: string
   storeId: string
   storeName: string
+  deliveryDistanceKm?: number
+  deliveryRadiusKm?: number
   status: CustomerOrderStatus
   statusText: string
   address: CustomerAddress
@@ -202,4 +250,27 @@ export type DeliveryArea = {
   radiusKm: number
   baseFee: number
   isEnabled: boolean
+}
+
+export type CreateMockOrderInput = {
+  storeId: string
+  storeName: string
+  storeLocation: Coordinates
+  deliveryRadiusKm: number
+  address: CustomerAddress
+  items: CartLine[]
+  price: OrderPricePreview
+  remark: string
+}
+
+export type MockBusinessState = {
+  customerOrders: CustomerOrder[]
+  merchantOrders: MerchantOrder[]
+  merchantMenuItems: MerchantMenuItem[]
+  merchantProfile: MerchantStoreProfile
+  deliveryTasks: DeliveryTask[]
+  merchantApplications: MerchantApplication[]
+  platformOrders: PlatformOrder[]
+  accountRecords: AccountRecord[]
+  deliveryAreas: DeliveryArea[]
 }

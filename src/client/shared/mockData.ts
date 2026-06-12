@@ -10,6 +10,7 @@ import type {
   MerchantMenuItem,
   MerchantOrder,
   MerchantStoreProfile,
+  MockBusinessState,
   PlatformOrder,
   StoreSummary,
 } from './types'
@@ -69,6 +70,7 @@ export const stores: StoreSummary[] = [
     announcement: '午高峰预计出餐 12 分钟，支持少盐少油备注。',
     minOrderAmount: 15,
     averagePrice: 19,
+    deliveryRadiusKm: 4.5,
     serviceTags: ['准时宝', '商家自配', '支持备注'],
     location: { latitude: -36.8478, longitude: 174.765 },
     menuCategories: [
@@ -88,6 +90,26 @@ export const stores: StoreSummary[] = [
         stock: 38,
         isAvailable: true,
         imageTone: 'rice',
+        optionGroups: [
+          {
+            id: 'rice-size',
+            name: '米饭份量',
+            required: true,
+            options: [
+              { id: 'regular', name: '标准饭量', priceDelta: 0 },
+              { id: 'large', name: '加饭', priceDelta: 1.5 },
+            ],
+          },
+          {
+            id: 'flavor',
+            name: '口味',
+            required: true,
+            options: [
+              { id: 'normal', name: '正常', priceDelta: 0 },
+              { id: 'less-salt', name: '少盐', priceDelta: 0 },
+            ],
+          },
+        ],
       },
       {
         id: 'bowl-beef',
@@ -143,6 +165,7 @@ export const stores: StoreSummary[] = [
     announcement: '炸鸡现点现炸，晚高峰建议提前下单。',
     minOrderAmount: 12,
     averagePrice: 17,
+    deliveryRadiusKm: 5,
     serviceTags: ['快速出餐', '夜宵', '平台配送'],
     location: { latitude: -36.8496, longitude: 174.7585 },
     menuCategories: [
@@ -205,6 +228,7 @@ export const stores: StoreSummary[] = [
     announcement: '默认少冰少糖，可在备注中调整甜度。',
     minOrderAmount: 10,
     averagePrice: 9,
+    deliveryRadiusKm: 3.5,
     serviceTags: ['可调甜度', '可调冰量', '极速达'],
     location: { latitude: -36.8531, longitude: 174.7644 },
     menuCategories: [
@@ -224,6 +248,37 @@ export const stores: StoreSummary[] = [
         stock: 96,
         isAvailable: true,
         imageTone: 'tea',
+        optionGroups: [
+          {
+            id: 'sweetness',
+            name: '甜度',
+            required: true,
+            options: [
+              { id: 'less-sugar', name: '少糖', priceDelta: 0 },
+              { id: 'half-sugar', name: '半糖', priceDelta: 0 },
+              { id: 'full-sugar', name: '全糖', priceDelta: 0 },
+            ],
+          },
+          {
+            id: 'ice',
+            name: '冰量',
+            required: true,
+            options: [
+              { id: 'less-ice', name: '少冰', priceDelta: 0 },
+              { id: 'no-ice', name: '去冰', priceDelta: 0 },
+            ],
+          },
+          {
+            id: 'topping',
+            name: '加料',
+            required: true,
+            options: [
+              { id: 'none', name: '不加料', priceDelta: 0 },
+              { id: 'extra-boba', name: '加珍珠', priceDelta: 0.8 },
+              { id: 'cheese-foam', name: '芝士奶盖', priceDelta: 1.2 },
+            ],
+          },
+        ],
       },
       {
         id: 'tea-lemon',
@@ -267,6 +322,7 @@ export const stores: StoreSummary[] = [
     announcement: '刺身类售完即止，建议优先选择套餐。',
     minOrderAmount: 18,
     averagePrice: 24,
+    deliveryRadiusKm: 4,
     serviceTags: ['新鲜现切', '支持预约', '保温配送'],
     location: { latitude: -36.8442, longitude: 174.7678 },
     menuCategories: [
@@ -333,8 +389,8 @@ export const merchantOrders: MerchantOrder[] = [
     customerName: 'Shuaijie',
     itemsSummary: '照烧鸡腿饭 x2、味噌汤 x1',
     items: [
-      { ...stores[0].menu[0], quantity: 2 },
-      { ...stores[0].menu[3], quantity: 1 },
+      { ...stores[0].menu[0], cartKey: 'bowl-teriyaki', quantity: 2 },
+      { ...stores[0].menu[3], cartKey: 'miso-soup', quantity: 1 },
     ],
     status: 'PendingAccept',
     statusText: '待接单',
@@ -349,8 +405,8 @@ export const merchantOrders: MerchantOrder[] = [
     customerName: 'Mia',
     itemsSummary: '黑椒牛肉饭 x1、南瓜素食饭 x1',
     items: [
-      { ...stores[0].menu[1], quantity: 1 },
-      { ...stores[0].menu[2], quantity: 1 },
+      { ...stores[0].menu[1], cartKey: 'bowl-beef', quantity: 1 },
+      { ...stores[0].menu[2], cartKey: 'bowl-veggie', quantity: 1 },
     ],
     status: 'Preparing',
     statusText: '备餐中',
@@ -364,7 +420,7 @@ export const merchantOrders: MerchantOrder[] = [
     id: 'KE-2050',
     customerName: 'Noah',
     itemsSummary: '照烧鸡腿饭 x1',
-    items: [{ ...stores[0].menu[0], quantity: 1 }],
+    items: [{ ...stores[0].menu[0], cartKey: 'bowl-teriyaki', quantity: 1 }],
     status: 'ReadyForPickup',
     statusText: '待骑手取餐',
     totalAmount: 20.19,
@@ -527,8 +583,8 @@ export const customerOrder: CustomerOrder = {
   statusText: '骑手配送中',
   address: customerAddresses[0],
   items: [
-    { ...stores[0].menu[0], quantity: 2 },
-    { ...stores[0].menu[3], quantity: 1 },
+    { ...stores[0].menu[0], cartKey: 'bowl-teriyaki', quantity: 2 },
+    { ...stores[0].menu[3], cartKey: 'miso-soup', quantity: 1 },
   ],
   price: {
     itemsAmount: 37.8,
@@ -585,4 +641,16 @@ export const customerOrder: CustomerOrder = {
       isCompleted: false,
     },
   ],
+}
+
+export const initialMockBusinessState: MockBusinessState = {
+  customerOrders: [customerOrder],
+  merchantOrders,
+  merchantMenuItems,
+  merchantProfile,
+  deliveryTasks,
+  merchantApplications,
+  platformOrders,
+  accountRecords,
+  deliveryAreas,
 }

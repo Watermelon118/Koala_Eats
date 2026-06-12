@@ -10,6 +10,7 @@
     "admin-web"
   ],
   "scripts": {
+    "mock:server": "node shared/mockApiServer.mjs",
     "dev:customer": "npm run dev -w customer-web -- --host 0.0.0.0 --port 5173",
     "dev:merchant": "npm run dev -w merchant-web -- --host 0.0.0.0 --port 5174",
     "dev:rider": "npm run dev -w rider-web -- --host 0.0.0.0 --port 5175",

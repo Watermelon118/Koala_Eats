@@ -1,17 +1,17 @@
 :root {
-  --background: #fff8e6;
-  --border: #eadfbf;
-  --brand: #ffc41f;
-  --brand-deep: #f6a900;
-  --brand-soft: #fff1bd;
+  --background: #f5f6f7;
+  --border: #e5e8ee;
+  --brand: #ffd84d;
+  --brand-deep: #f5b400;
+  --brand-soft: #fff3bd;
   --danger: #d94b25;
-  --ink: #211b15;
-  --muted: #766f63;
-  --shadow: 0 14px 30px rgba(66, 49, 18, 0.1);
+  --ink: #1f2430;
+  --muted: #6d7480;
+  --shadow: 0 16px 34px rgba(25, 31, 44, 0.08);
   --success: #21a366;
   --surface: #ffffff;
-  --surface-strong: #fffaf0;
-  --text: #3c3328;
+  --surface-strong: #f8fafc;
+  --text: #2b313b;
   color: var(--text);
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
@@ -34,9 +34,7 @@ html {
 }
 
 body {
-  background:
-    linear-gradient(180deg, rgba(255, 196, 31, 0.22), transparent 260px),
-    var(--background);
+  background: var(--background);
   margin: 0;
 }
 
@@ -88,7 +86,7 @@ h3 {
 
 .brand-mark {
   align-items: center;
-  background: var(--ink);
+  background: linear-gradient(135deg, var(--ink), #343b49);
   border-radius: 8px;
   color: var(--brand);
   display: flex;
@@ -162,12 +160,16 @@ h3 {
 }
 
 .primary-button {
+  align-items: center;
   background: var(--brand);
   border: 0;
   border-radius: 8px;
   color: var(--ink);
   cursor: pointer;
+  display: inline-flex;
   font-weight: 900;
+  gap: 8px;
+  justify-content: center;
   min-height: 46px;
   padding: 0 16px;
 }
@@ -179,14 +181,127 @@ h3 {
 }
 
 .dark-button {
+  align-items: center;
   background: var(--ink);
   border: 0;
   border-radius: 8px;
   color: #ffffff;
   cursor: pointer;
+  display: inline-flex;
   font-weight: 900;
+  gap: 8px;
+  justify-content: center;
   min-height: 46px;
   padding: 0 16px;
+}
+
+.mock-alert {
+  background: #fff7f3;
+  border: 1px solid #f2a08a;
+  border-radius: 8px;
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 900;
+  padding: 10px 12px;
+}
+
+.address-autocomplete {
+  display: grid;
+  gap: 8px;
+  position: relative;
+}
+
+.address-autocomplete > span {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.address-input-wrap {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  gap: 8px;
+  min-height: 46px;
+  padding: 0 12px;
+}
+
+.address-input-wrap input {
+  background: transparent;
+  border: 0;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  outline: 0;
+}
+
+.address-input-wrap small,
+.address-error {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.address-error {
+  color: var(--danger);
+}
+
+.address-suggestions {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  display: grid;
+  left: 0;
+  overflow: hidden;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 30;
+}
+
+.address-suggestions button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  gap: 10px;
+  min-height: 58px;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.address-suggestions button:hover {
+  background: var(--surface-strong);
+}
+
+.address-suggestions button span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.address-suggestions button strong,
+.address-suggestions button small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.address-suggestions button small,
+.address-suggestions p {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.address-suggestions p {
+  margin: 0;
+  padding: 8px 12px;
 }
 
 .rice {

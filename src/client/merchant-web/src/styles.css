@@ -1,6 +1,9 @@
 .merchant-hero {
   align-items: center;
-  background: linear-gradient(135deg, var(--brand), var(--brand-deep));
+  background:
+    radial-gradient(circle at 92% 12%, rgba(255, 255, 255, 0.48), transparent 26%),
+    linear-gradient(135deg, #fff1a8, #ffffff 54%, #ffe173);
+  border-color: rgba(245, 180, 0, 0.34);
   display: flex;
   justify-content: space-between;
   min-height: 170px;
@@ -24,6 +27,7 @@
 
 .status-toggle.open {
   background: var(--brand);
+  border-color: var(--brand-deep);
   color: var(--ink);
 }
 
@@ -70,6 +74,26 @@
   grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
 }
 
+.merchant-app .metric-card {
+  border-top: 4px solid transparent;
+}
+
+.merchant-app .metric-card:nth-child(1) {
+  border-top-color: #f05b24;
+}
+
+.merchant-app .metric-card:nth-child(2) {
+  border-top-color: var(--brand-deep);
+}
+
+.merchant-app .metric-card:nth-child(3) {
+  border-top-color: var(--success);
+}
+
+.merchant-app .metric-card:nth-child(4) {
+  border-top-color: #5677fc;
+}
+
 .panel-title,
 .order-footer,
 .dish-list article,
@@ -109,8 +133,18 @@
   padding: 14px;
 }
 
+.order-items small {
+  color: var(--muted);
+  display: block;
+  font-size: 12px;
+  font-weight: 800;
+  margin-top: 3px;
+}
+
 .order-card {
   cursor: pointer;
+  display: grid;
+  gap: 8px;
   text-align: left;
 }
 
@@ -120,7 +154,9 @@
 }
 
 .order-card p {
-  margin: 10px 0;
+  color: var(--text);
+  font-weight: 800;
+  margin: 0;
 }
 
 .order-detail {
@@ -159,6 +195,24 @@
   padding: 0 16px;
 }
 
+.light-button {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 900;
+  min-height: 38px;
+  padding: 0 12px;
+}
+
+.danger-button:disabled,
+.primary-button:disabled {
+  background: var(--border);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
 .dish-icon {
   align-items: center;
   border-radius: 8px;
@@ -166,6 +220,36 @@
   height: 42px;
   justify-content: center;
   width: 42px;
+}
+
+.dish-icon.rice {
+  background: linear-gradient(135deg, #fff0b8, #ffcf6b);
+}
+
+.dish-icon.burger {
+  background: linear-gradient(135deg, #ffd5ad, #ff8e54);
+}
+
+.dish-icon.tea {
+  background: linear-gradient(135deg, #c9f3da, #78d09c);
+}
+
+.dish-icon.sushi {
+  background: linear-gradient(135deg, #e4edff, #94b5ff);
+}
+
+.dish-list article {
+  box-shadow: 0 8px 18px rgba(25, 31, 44, 0.04);
+  min-height: 72px;
+}
+
+.dish-list article > strong {
+  color: #f05b24;
+}
+
+.dish-list article:hover,
+.order-card:hover {
+  border-color: #f0c031;
 }
 
 .menu-management section {
@@ -202,6 +286,9 @@
 
 .location-panel,
 .prep-panel {
+  background:
+    linear-gradient(135deg, rgba(255, 216, 77, 0.18), transparent 56%),
+    var(--surface);
   justify-content: flex-start;
   min-height: 112px;
 }
@@ -213,7 +300,8 @@
 }
 
 .store-settings input,
-.store-settings textarea {
+.store-settings textarea,
+.readonly-field {
   border: 1px solid var(--border);
   border-radius: 8px;
   color: var(--text);
@@ -221,9 +309,23 @@
   padding: 10px 12px;
 }
 
+.readonly-field {
+  align-items: center;
+  background: var(--surface-strong);
+  display: flex;
+  font-weight: 900;
+}
+
 .store-settings textarea {
   min-height: 96px;
   resize: vertical;
+}
+
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
 }
 
 @media (max-width: 980px) {

@@ -12,8 +12,10 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 import { formatDistance, formatMoney } from '../../shared/format'
-import { deliveryTasks } from '../../shared/mockData'
-import type { DeliveryTask, DeliveryTaskStatus } from '../../shared/types'
+import { reportMockDeliveryIssue, updateMockDeliveryStatus } from '../../shared/mockApi'
+import { initialMockBusinessState } from '../../shared/mockData'
+import type { DeliveryTaskStatus } from '../../shared/types'
+import { useMockBusinessState } from '../../shared/useMockBusinessState'
 
 const nextDeliveryStatus: Partial<Record<DeliveryTaskStatus, DeliveryTaskStatus>> = {
   Available: 'Accepted',
@@ -33,8 +35,11 @@ const deliveryStatusText: Record<DeliveryTaskStatus, string> = {
 }
 
 function App() {
-  const [tasks, setTasks] = useState<DeliveryTask[]>(deliveryTasks)
-  const [selectedTaskId, setSelectedTaskId] = useState(deliveryTasks[0].id)
+  const { errorMessage, setState: setMockState, state: mockState } =
+    useMockBusinessState(initialMockBusinessState)
+  const tasks = mockState.deliveryTasks
+  const [selectedTaskId, setSelectedTaskId] = useState(tasks[0].id)
+  const [issueReason, setIssueReason] = useState('联系不上顾客')
   const selectedTask = tasks.find((task) => task.id === selectedTaskId) ?? tasks[0]
 
   const availableTasks = tasks.filter((task) => task.status === 'Available').length
@@ -69,26 +74,21 @@ function App() {
     [selectedTask],
   )
 
-  function advanceTask(taskId: string) {
-    setTasks((currentTasks) =>
-      currentTasks.map((task) => {
-        if (task.id !== taskId) {
-          return task
-        }
+  async function advanceTask(taskId: string) {
+    const task = tasks.find((item) => item.id === taskId)
+    const nextStatus = task ? nextDeliveryStatus[task.status] : null
 
-        const nextStatus = nextDeliveryStatus[task.status]
+    if (!nextStatus) {
+      return
+    }
 
-        if (!nextStatus) {
-          return task
-        }
+    const nextState = await updateMockDeliveryStatus(taskId, nextStatus)
+    setMockState(nextState)
+  }
 
-        return {
-          ...task,
-          status: nextStatus,
-          statusText: deliveryStatusText[nextStatus],
-        }
-      }),
-    )
+  async function reportIssue(taskId: string) {
+    const nextState = await reportMockDeliveryIssue(taskId, issueReason)
+    setMockState(nextState)
   }
 
   return (
@@ -129,6 +129,8 @@ function App() {
           <strong>{averageMinutes}m</strong>
         </article>
       </section>
+
+      {errorMessage && <div className="mock-alert">Mock API 未连接：{errorMessage}</div>}
 
       <section className="rider-grid">
         <div className="panel">
@@ -198,7 +200,7 @@ function App() {
           <button
             className="primary-button full-width"
             disabled={!nextDeliveryStatus[selectedTask.status]}
-            onClick={() => advanceTask(selectedTask.id)}
+            onClick={() => void advanceTask(selectedTask.id)}
             type="button"
           >
             <CheckCircle2 size={18} strokeWidth={2.4} />
@@ -206,6 +208,17 @@ function App() {
               ? `更新为${deliveryStatusText[nextDeliveryStatus[selectedTask.status] as DeliveryTaskStatus]}`
               : '配送已完成'}
           </button>
+          <div className="issue-panel">
+            <select value={issueReason} onChange={(event) => setIssueReason(event.target.value)}>
+              <option>联系不上顾客</option>
+              <option>商家未按时出餐</option>
+              <option>地址异常，无法送达</option>
+              <option>餐品破损，需平台介入</option>
+            </select>
+            <button className="danger-button full-width" onClick={() => void reportIssue(selectedTask.id)} type="button">
+              上报异常
+            </button>
+          </div>
         </div>
 
         <div className="panel map-panel">
@@ -235,7 +248,7 @@ function App() {
               <Clock3 size={16} strokeWidth={2.4} /> 预计 {selectedTask.estimatedMinutes} 分钟
             </span>
             <span>
-              <Map size={16} strokeWidth={2.4} /> 后续接 Google Maps
+              <Map size={16} strokeWidth={2.4} /> 订单坐标路线
             </span>
           </div>
         </div>

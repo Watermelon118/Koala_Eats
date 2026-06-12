@@ -4,6 +4,26 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.admin-app .metric-card {
+  border-top: 4px solid transparent;
+}
+
+.admin-app .metric-card:nth-child(1) {
+  border-top-color: var(--brand-deep);
+}
+
+.admin-app .metric-card:nth-child(2) {
+  border-top-color: #f05b24;
+}
+
+.admin-app .metric-card:nth-child(3) {
+  border-top-color: var(--success);
+}
+
+.admin-app .metric-card:nth-child(4) {
+  border-top-color: #5677fc;
+}
+
 .admin-tabs button {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -59,14 +79,22 @@
   padding: 14px;
 }
 
+.review-list article,
+.account-grid article,
+.task-card {
+  box-shadow: 0 8px 18px rgba(25, 31, 44, 0.04);
+}
+
 .task-card.urgent,
 .review-list article.urgent {
   border-color: #f2a08a;
+  background: #fff7f3;
 }
 
 .task-card.warning,
 .review-list article.warning {
   border-color: var(--brand-deep);
+  background: #fffaf0;
 }
 
 .task-card span,
@@ -111,10 +139,44 @@
 
 .account-grid article {
   justify-content: flex-start;
+  min-height: 88px;
 }
 
 .account-grid article button {
   margin-left: auto;
+}
+
+.account-grid article.area-card {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.account-grid article.area-card > div {
+  flex: 1 1 180px;
+}
+
+.account-grid article.area-card button {
+  margin-left: 0;
+}
+
+.admin-workspace {
+  min-height: 440px;
+}
+
+.review-list article > small {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-weight: 900;
+  padding: 5px 9px;
+}
+
+.review-list article.urgent > small {
+  color: var(--danger);
+}
+
+.review-list article.warning > small {
+  color: #9b6600;
 }
 
 @media (max-width: 980px) {
