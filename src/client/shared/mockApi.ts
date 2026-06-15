@@ -12,6 +12,7 @@ import type {
   MockBusinessState,
   PlatformOrder,
 } from './types'
+import { getAuthToken } from './auth'
 
 const DEFAULT_API_BASE_URL = 'http://localhost:5156'
 
@@ -24,15 +25,21 @@ type MockApiResponse<T> = {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getAuthToken()
   const response = await fetch(`${apiBaseUrl}${path}`, {
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init?.headers ?? {}),
     },
     ...init,
   })
 
-  const payload = (await response.json()) as MockApiResponse<T>
+  const payload = (await response.json().catch(() => ({
+    code: response.status === 401 ? 'UNAUTHORIZED' : 'HTTP_ERROR',
+    data: null,
+    message: response.status === 401 ? 'Please log in again' : `HTTP ${response.status}`,
+  }))) as MockApiResponse<T>
 
   if (!response.ok || payload.code !== 'OK') {
     throw new Error(payload.message || `Mock API request failed: ${path}`)

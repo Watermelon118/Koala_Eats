@@ -339,6 +339,7 @@ function createInitialState() {
       { id: 'M-2001', name: merchantProfile.name, role: 'Merchant', status: 'Active' },
       { id: 'R-3001', name: 'Liam', role: 'Rider', status: 'Active' },
       { id: 'R-3002', name: 'Rider #18', role: 'Rider', status: 'PendingReview' },
+      { id: 'A-9001', name: 'Platform Admin', role: 'Admin', status: 'Active' },
     ],
     deliveryAreas: [
       { id: 'DA-1', name: 'Auckland CBD', radiusKm: 5, baseFee: 2.99, isEnabled: true },

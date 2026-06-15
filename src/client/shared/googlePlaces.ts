@@ -9,6 +9,10 @@ type GooglePlacesLibrary = {
   }
 }
 
+type GoogleMapsMapLibrary = {
+  Map: new (element: HTMLElement, options: Record<string, unknown>) => unknown
+}
+
 type GoogleMapsApi = {
   maps?: {
     importLibrary?: (name: string) => Promise<unknown>
@@ -64,6 +68,24 @@ export async function loadGooglePlacesLibrary(): Promise<GooglePlacesLibrary> {
   }
 
   return (await googleApi.maps.importLibrary('places')) as GooglePlacesLibrary
+}
+
+export async function loadGoogleMapsMapLibrary(): Promise<GoogleMapsMapLibrary> {
+  const apiKey = getGoogleMapsApiKey().trim()
+
+  if (!apiKey) {
+    throw new Error('VITE_GOOGLE_MAPS_API_KEY is not configured')
+  }
+
+  await loadGoogleMapsScript(apiKey)
+
+  const googleApi = (window as unknown as { google?: GoogleMapsApi }).google
+
+  if (!googleApi?.maps?.importLibrary) {
+    throw new Error('Google Maps JavaScript API did not expose importLibrary')
+  }
+
+  return (await googleApi.maps.importLibrary('maps')) as GoogleMapsMapLibrary
 }
 
 export function createAutocompleteRequest(input: string, sessionToken: unknown) {

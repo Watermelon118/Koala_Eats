@@ -24,6 +24,7 @@ import {
   updateMockDeliveryArea,
   updateMockMerchantApplicationStatus,
 } from '../../shared/mockApi'
+import { AuthGate } from '../../shared/auth'
 import type {
   AccountRecord,
   DeliveryArea,
@@ -34,6 +35,14 @@ import { useMockBusinessState } from '../../shared/useMockBusinessState'
 type AdminTab = 'reviews' | 'orders' | 'accounts' | 'areas'
 
 function App() {
+  return (
+    <AuthGate productName="考拉外卖管理端" role="Admin">
+      <AdminApp />
+    </AuthGate>
+  )
+}
+
+function AdminApp() {
   const { errorMessage, setState: setMockState, state: mockState } =
     useMockBusinessState(initialMockBusinessState)
   const [activeTab, setActiveTab] = useState<AdminTab>('reviews')

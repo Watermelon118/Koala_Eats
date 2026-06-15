@@ -1,9 +1,11 @@
 using KoalaEats.Api;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace KoalaEats.Api.Controllers;
 
 [ApiController]
+[Authorize(Roles = AppRoles.Admin)]
 [Route("api/admin")]
 public sealed class AdminController : ApiControllerBase
 {

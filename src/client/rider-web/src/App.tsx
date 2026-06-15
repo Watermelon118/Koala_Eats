@@ -14,6 +14,7 @@ import {
 import { formatDistance, formatMoney } from '../../shared/format'
 import { reportMockDeliveryIssue, updateMockDeliveryStatus } from '../../shared/mockApi'
 import { initialMockBusinessState } from '../../shared/mockData'
+import { AuthGate } from '../../shared/auth'
 import type { DeliveryTaskStatus } from '../../shared/types'
 import { useMockBusinessState } from '../../shared/useMockBusinessState'
 
@@ -35,6 +36,14 @@ const deliveryStatusText: Record<DeliveryTaskStatus, string> = {
 }
 
 function App() {
+  return (
+    <AuthGate productName="考拉外卖骑手端" role="Rider">
+      <RiderApp />
+    </AuthGate>
+  )
+}
+
+function RiderApp() {
   const { errorMessage, setState: setMockState, state: mockState } =
     useMockBusinessState(initialMockBusinessState)
   const tasks = mockState.deliveryTasks

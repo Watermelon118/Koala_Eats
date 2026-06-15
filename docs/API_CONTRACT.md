@@ -185,6 +185,7 @@ Available -> Accepted -> ArrivedStore -> PickedUp -> Delivering -> Delivered
 - 结果限制为 New Zealand：`includedRegionCodes: ["nz"]`，并使用 NZ 附近 `locationRestriction`。
 - 选中地址后必须读取 `formattedAddress` 和 `location`，存入业务状态时使用统一坐标结构。
 - API key 必须在 Google Cloud 中限制 HTTP referrer，并启用 Maps JavaScript API 和 Places API。
+- 用户端配送追踪页在存在 `VITE_GOOGLE_MAPS_API_KEY` 时渲染 Google Maps 底图；无 key 或加载失败时保留本地路线示意图，不阻塞订单流程。
 
 前端选中地址后的结构：
 
@@ -223,7 +224,89 @@ Response `200`:
 
 ## Auth
 
-后续由前端登录页面需求补充。
+### POST `/api/auth/login`
+
+状态：`Done`
+
+用途：四端登录。前端按自身端角色提交 `role`，后端签发 JWT access token。
+
+Request:
+
+```json
+{
+  "email": "customer@koala.test",
+  "password": "Customer#2026",
+  "role": "Customer"
+}
+```
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": {
+    "accessToken": "jwt",
+    "expiresAtUtc": "2026-06-12T12:00:00Z",
+    "user": {
+      "id": "U-1001",
+      "email": "customer@koala.test",
+      "displayName": "Shuaijie",
+      "role": "Customer"
+    }
+  }
+}
+```
+
+Response `401`:
+
+```json
+{
+  "code": "UNAUTHORIZED",
+  "message": "Invalid email, password, or role",
+  "data": null
+}
+```
+
+### GET `/api/auth/me`
+
+状态：`Done`
+
+用途：前端刷新页面时校验本地 JWT，并拿当前用户与角色。
+
+Headers:
+
+```json
+{
+  "Authorization": "Bearer <accessToken>"
+}
+```
+
+Response `200`:
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "data": {
+    "id": "U-1001",
+    "email": "customer@koala.test",
+    "displayName": "Shuaijie",
+    "role": "Customer"
+  }
+}
+```
+
+### 角色鉴权规则
+
+状态：`Done`
+
+- Customer API：只允许 `Customer`。
+- Merchant API：只允许 `Merchant`。
+- Rider API：只允许 `Rider`。
+- Admin API：只允许 `Admin`。
+- Mock state API：允许任意已登录角色读取，用于开发期四端共享状态。
 
 ## Customer API
 

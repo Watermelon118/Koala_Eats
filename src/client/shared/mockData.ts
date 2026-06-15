@@ -567,6 +567,7 @@ export const accountRecords: AccountRecord[] = [
   { id: 'M-2001', name: '考拉能量饭', role: 'Merchant', status: 'Active' },
   { id: 'R-3001', name: 'Liam', role: 'Rider', status: 'Active' },
   { id: 'R-3002', name: 'Rider #18', role: 'Rider', status: 'PendingReview' },
+  { id: 'A-9001', name: 'Platform Admin', role: 'Admin', status: 'Active' },
 ]
 
 export const deliveryAreas: DeliveryArea[] = [

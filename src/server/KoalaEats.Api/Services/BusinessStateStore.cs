@@ -219,6 +219,7 @@ public sealed partial class BusinessStateStore
             .ThenBy(record => record.Name)
             .Select(MapAccountRecord)
             .ToList();
+        EnsurePlatformAdminAccount();
         _deliveryAreas = db.DeliveryAreas
             .OrderBy(area => area.SortOrder)
             .Select(MapDeliveryArea)
@@ -271,6 +272,22 @@ public sealed partial class BusinessStateStore
         }
 
         set.AddRange(entities);
+    }
+
+    private void EnsurePlatformAdminAccount()
+    {
+        if (_accountRecords.Any(account => account.Id == "A-9001"))
+        {
+            return;
+        }
+
+        _accountRecords.Add(new AccountRecord
+        {
+            Id = "A-9001",
+            Name = "Platform Admin",
+            Role = AppRoles.Admin,
+            Status = "Active",
+        });
     }
 
     private void RefreshPrimaryStoreSeed()
@@ -693,6 +710,7 @@ public sealed partial class BusinessStateStore
             new AccountEntity { Id = "M-2001", Name = "Koala Bowl", Role = "Merchant", Status = "Active", CreatedAtUtc = DateTimeOffset.UtcNow, UpdatedAtUtc = DateTimeOffset.UtcNow },
             new AccountEntity { Id = "R-3001", Name = "Liam", Role = "Rider", Status = "Active", CreatedAtUtc = DateTimeOffset.UtcNow, UpdatedAtUtc = DateTimeOffset.UtcNow },
             new AccountEntity { Id = "R-3002", Name = "Rider #18", Role = "Rider", Status = "PendingReview", CreatedAtUtc = DateTimeOffset.UtcNow, UpdatedAtUtc = DateTimeOffset.UtcNow },
+            new AccountEntity { Id = "A-9001", Name = "Platform Admin", Role = "Admin", Status = "Active", CreatedAtUtc = DateTimeOffset.UtcNow, UpdatedAtUtc = DateTimeOffset.UtcNow },
         ];
     }
 
@@ -1850,6 +1868,7 @@ public sealed partial class BusinessStateStore
             new AccountRecord { Id = "M-2001", Name = "Koala Bowl", Role = "Merchant", Status = "Active" },
             new AccountRecord { Id = "R-3001", Name = "Liam", Role = "Rider", Status = "Active" },
             new AccountRecord { Id = "R-3002", Name = "Rider #18", Role = "Rider", Status = "PendingReview" },
+            new AccountRecord { Id = "A-9001", Name = "Platform Admin", Role = "Admin", Status = "Active" },
         ];
     }
 

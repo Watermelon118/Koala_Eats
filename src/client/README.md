@@ -31,6 +31,17 @@ npm run dev:rider
 npm run dev:admin
 ```
 
+## Local Auth
+
+四端都需要先登录，开发环境默认账号：
+
+- Customer：`customer@koala.test` / `Customer#2026`
+- Merchant：`merchant@koala.test` / `Merchant#2026`
+- Rider：`rider@koala.test` / `Rider#2026`
+- Admin：`admin@koala.test` / `Admin#2026`
+
+前端会把 JWT 存在当前端口自己的 `localStorage`。退出登录会清掉本端 token。
+
 同局域网设备访问：
 
 - `http://localhost:5173`

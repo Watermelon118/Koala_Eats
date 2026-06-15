@@ -19,6 +19,10 @@ public abstract class ApiControllerBase : ControllerBase
         {
             return Conflict(ApiResponse<object>.Fail("INVALID_STATE", ex.Message));
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(ApiResponse<object>.Fail("UNAUTHORIZED", ex.Message));
+        }
         catch (Exception ex) when (ex.Message.Contains("Delivery address is outside this store delivery range", StringComparison.OrdinalIgnoreCase))
         {
             return BadRequest(ApiResponse<object>.Fail("DELIVERY_OUT_OF_RANGE", ex.Message));

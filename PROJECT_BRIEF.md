@@ -60,7 +60,8 @@
 - ASP.NET Core Web API。
 - SQL Server。
 - Entity Framework Core。
-- JWT 或 Cookie 会话机制待定。
+- JWT Bearer 登录鉴权。
+- 上云目标使用 Azure PaaS：Azure App Service、Azure SQL Database、Azure Static Web Apps。
 
 ### 前端
 
@@ -140,6 +141,8 @@
 - 全链路显式 UTF-8。
 - `.env`、本地 secrets、连接字符串不能提交。
 - 日志不记录密码、token、完整地址、手机号等敏感信息。
+- 业务接口默认需要登录，后端按 Customer / Merchant / Rider / Admin 做角色鉴权。
+- 生产环境缺少 JWT signing key、Azure SQL 连接串或 CORS origins 时后端必须启动失败。
 - 本地多设备测试默认后端地址为 `http://192.168.88.100:5156`，前端调用接口不能使用 `localhost` 或 `127.0.0.1`。
 - 本地前端默认端口：
   - 用户端：`http://192.168.88.100:5173`

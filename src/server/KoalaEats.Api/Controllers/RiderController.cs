@@ -1,9 +1,11 @@
 using KoalaEats.Api;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace KoalaEats.Api.Controllers;
 
 [ApiController]
+[Authorize(Roles = AppRoles.Rider)]
 [Route("api/rider")]
 public sealed class RiderController : ApiControllerBase
 {

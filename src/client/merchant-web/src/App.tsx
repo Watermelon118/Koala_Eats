@@ -22,6 +22,7 @@ import {
 } from '../../shared/mockApi'
 import { initialMockBusinessState } from '../../shared/mockData'
 import { GoogleAddressAutocomplete } from '../../shared/GoogleAddressAutocomplete'
+import { AuthGate } from '../../shared/auth'
 import type {
   GoogleResolvedAddress,
   MerchantMenuItem,
@@ -46,6 +47,14 @@ const orderStatusText: Record<MerchantOrderStatus, string> = {
 }
 
 function App() {
+  return (
+    <AuthGate productName="考拉外卖商家端" role="Merchant">
+      <MerchantApp />
+    </AuthGate>
+  )
+}
+
+function MerchantApp() {
   const { errorMessage, setState: setMockState, state: mockState } =
     useMockBusinessState(initialMockBusinessState)
   const [activeTab, setActiveTab] = useState<MerchantTab>('orders')

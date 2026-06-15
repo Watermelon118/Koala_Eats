@@ -240,7 +240,7 @@ export type PlatformOrder = {
 export type AccountRecord = {
   id: string
   name: string
-  role: 'Customer' | 'Merchant' | 'Rider'
+  role: 'Customer' | 'Merchant' | 'Rider' | 'Admin'
   status: 'Active' | 'Frozen' | 'PendingReview'
 }
 

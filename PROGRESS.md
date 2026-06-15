@@ -2,7 +2,7 @@
 
 ## 当前阶段
 
-2026-06-12：四端前端 mock 业务闭环已完成；本次在 `feature/meituan-like-frontend` 上继续把用户端改成更接近真实外卖 App 的首页、点餐、结算、支付、配送体验，并补强商家端、骑手端、管理端的工作台视觉状态。随后新增开发期共享 mock 业务引擎，四端可通过同一份 mock 状态联动订单、商家接单、骑手配送和管理端异常处理。地址输入已接入 Google Maps Places Autocomplete Data API，用户端收货地址和商家端店铺地址支持 New Zealand 地址联想。用户端已继续补齐配送范围校验、规格/口味/加料选择、订单取消和自动退款分支，方便后续按契约替换真实后端接口。最新一轮补齐同菜品不同规格拆购物车行、地址簿保存/删除、支付超时自动取消、商家营业规则调整、骑手异常上报、管理端异常关闭和配送区域半径/费用调整。
+2026-06-15：四端前端 mock 业务闭环已完成；本次在 `feature/pre-cloud-auth-paas` 上继续按美团外卖截图抽取基础用户端 Web 逻辑和布局：底部主导航改为外卖 / 订单 / 我的，首页只保留地址、搜索、分类、附近商家，去掉广告、活动券和无业务意义的流程标签；购物车改为右下角悬浮入口，打开后按商家分组展示商品，单个商家分别结算；用户端不再限制为手机壳宽度，改为桌面 Web 宽布局。支付仍保持模拟支付，不接第三方支付接口。
 
 ## 已做决策
 
@@ -36,12 +36,19 @@
 - 2026-06-12：购物车从按菜品 ID 聚合改为按 `cartKey` 聚合。原因：真实外卖订单中同一菜品的不同规格、口味、加料必须拆成不同订单行，商家小票和退款也依赖该结构。放弃替代方案：只保留每个菜品一个当前规格。
 - 2026-06-12：骑手异常上报进入管理端异常池，管理端可人工派单或关闭异常。原因：配送履约中常见的联系不上顾客、商家未出餐、地址异常不能只停留在骑手本地状态。放弃替代方案：骑手端只推进正常状态。
 - 2026-06-12：管理端配送区域支持启停、半径和起步配送费调整。原因：后端实现配送范围、配送费和店铺覆盖关系时需要前端先确认运营规则入口。放弃替代方案：配送区域只读展示。
+- 2026-06-12：登录鉴权采用 JWT Bearer，不使用 Cookie 会话。原因：四个独立 Web 端口和后续 Azure PaaS 分离部署更适合无状态 token；后端能直接按角色保护 API。放弃替代方案：服务端 Cookie session。
+- 2026-06-12：上云目标明确为 Azure PaaS。后端用 Azure App Service，数据库用 Azure SQL Database，四个前端用 Azure Static Web Apps。原因：用户明确不要 IaaS，且当前项目不需要 VM、手工 IIS 或服务器 SSH 运维。放弃替代方案：Azure VM / IaaS。
+- 2026-06-12：生产环境缺少 `Auth__SigningKey`、Azure SQL 连接串或 CORS origins 时 API 启动失败。原因：上云前把安全边界前移，避免生产误用本地默认配置。放弃替代方案：生产继续使用开发默认值。
+- 2026-06-12：用户端配送追踪页支持在配置 Google Maps API key 后渲染真实地图底图，无 key 或加载失败时保留本地路线示意图。原因：当前只有 Google Maps API，地图能力可以先接；支付等第三方接口继续不接。放弃替代方案：继续只显示 CSS 假地图。
+- 2026-06-12：用户端点餐逻辑改为首页浏览/搜索商家、进入商家页点餐、按商家保留购物车、从购物车进入结算。原因：外卖平台购物车通常属于单个商家点餐场景，顶部流程标签不是用户真实操作入口。放弃替代方案：继续用“首页/点餐/结算/支付/配送”标签模拟流程。
+- 2026-06-15：用户端首页不再放活动、优惠券和广告位，只保留外卖基础路径。原因：当前目标是对齐外卖下单逻辑和页面结构，不做营销运营。放弃替代方案：继续展示新用户券、促销条和大额优惠。
+- 2026-06-15：用户端购物车改为全局悬浮入口，购物车页按商家分组并从对应商家进入结算。原因：用户明确要求 Web 端不要做成 App 小屏，但业务逻辑要对齐外卖平台的购物车入口和打开后的结构。放弃替代方案：商家详情页右侧固定购物车面板、底部“继续下单”入口。
 
 ## 待办
 
-- 确认认证方案：JWT 或 Cookie。
-- 为四个独立前端应用补充真实登录和鉴权边界。
-- 后端按 `docs/API_CONTRACT.md` 逐个实现当前 Mocked 接口，并替换前端 mock。
+- 把开发期 demo 账号替换为数据库持久化用户和密码哈希。
+- 上 Azure 前配置 App Service settings、Static Web Apps env vars、Azure SQL 连接串和 Google Maps referrer 限制。
+- 后端继续按 `docs/API_CONTRACT.md` 将剩余开发期 mock 语义拆成真实领域服务和持久化接口。
 
 ## 阻塞
 
@@ -54,3 +61,6 @@
 2026-06-12: ASP.NET Core in-memory API is live on 5156; next step is switching client mockApi.ts to the real routes.
 2026-06-12: SQL Server schema baseline created with EF Core InitialCreate migration and applied locally as empty tables.
 2026-06-12: Frontend now targets the real ASP.NET Core API on localhost:5156; mutation helpers refresh state from the backend snapshot after each successful action, and rider/admin dismiss flows are wired end-to-end.
+2026-06-15: Customer web now matches the basic takeaway web structure from the supplied Meituan screenshots: bottom nav only has 外卖 / 订单 / 我的, home feed has no promo/ad blocks or staged flow tabs, the layout is desktop-width, and cart access is a bottom-right floating button. Browser smoke test verifies desktop width, no 继续下单 nav item, floating cart, add-item flow, grouped cart page, and checkout entry. Next step is user visual review in the browser and then commit/merge when accepted.
+2026-06-15: Customer web follow-up cleanup removed remaining customer-side promo/coupon UI traces and dead old cart/recent-order components, fixed the store-page floating cart so it no longer intercepts menu plus clicks, and changed pending-order tracking copy to avoid showing an unassigned rider as delivering. Verified customer-web build, backend build, and browser flow: home -> store add -> grouped cart by merchant -> single-store checkout -> mock payment -> tracking.
+2026-06-15: Customer web profile interactions are now clickable: address management supports manual add, set default, and delete; order tabs filter all/review/after-sales; support entries create visible consultation records; reviews support star selection and saved rating state; settings toggles update in place. Browser smoke test verified each profile entry from the live customer web.
