@@ -64,19 +64,10 @@ type CustomerView =
   | 'orders'
   | 'profile'
   | 'addresses'
-  | 'support'
   | 'reviews'
   | 'settings'
 
 type OrderFilter = 'all' | 'review' | 'afterSales'
-
-type SupportRecord = {
-  id: string
-  title: string
-  description: string
-  status: string
-  createdAt: string
-}
 
 const statusTextByStatus: Record<CustomerOrderStatus, string> = {
   PendingPayment: '待支付',
@@ -135,7 +126,6 @@ function CustomerApp() {
     phoneMasked: customerAddresses[0].phoneMasked,
     receiverName: customerAddresses[0].receiverName,
   })
-  const [supportRecords, setSupportRecords] = useState<SupportRecord[]>([])
   const [reviewRatings, setReviewRatings] = useState<Record<string, number>>({})
   const [settings, setSettings] = useState({
     contactlessDelivery: true,
@@ -446,18 +436,6 @@ function CustomerApp() {
     }
   }
 
-  function createSupportRecord(title: string, description: string) {
-    const nextRecord = {
-      createdAt: '刚刚',
-      description,
-      id: `support-${Date.now()}`,
-      status: '待客服回复',
-      title,
-    }
-
-    setSupportRecords((currentRecords) => [nextRecord, ...currentRecords])
-  }
-
   function submitReview(orderId: string) {
     setReviewRatings((currentRatings) => ({
       ...currentRatings,
@@ -589,9 +567,6 @@ function CustomerApp() {
               <button className="icon-only-button" onClick={() => setOrderFilter('all')} type="button" aria-label="全部订单">
                 <Search size={22} strokeWidth={2.4} />
               </button>
-              <button className="icon-only-button" onClick={() => setView('support')} type="button" aria-label="咨询记录">
-                <MessageSquareText size={22} strokeWidth={2.4} />
-              </button>
             </div>
           </header>
 
@@ -669,24 +644,6 @@ function CustomerApp() {
           </header>
 
           <section className="profile-card">
-            <h2>我的资产</h2>
-            <div className="asset-grid">
-              <article>
-                <strong>{savedAddresses.length}</strong>
-                <span>地址</span>
-              </article>
-              <article>
-                <strong>{mockState.customerOrders.length}</strong>
-                <span>订单</span>
-              </article>
-              <article>
-                <strong>{Object.keys(cartsByStore).length}</strong>
-                <span>购物车</span>
-              </article>
-            </div>
-          </section>
-
-          <section className="profile-card">
             <h2>我的功能</h2>
             <div className="profile-actions">
               <button onClick={() => setView('addresses')} type="button">
@@ -696,10 +653,6 @@ function CustomerApp() {
               <button onClick={() => setView('orders')} type="button">
                 <ClipboardList size={22} strokeWidth={2.4} />
                 全部订单
-              </button>
-              <button onClick={() => setView('support')} type="button">
-                <MessageSquareText size={22} strokeWidth={2.4} />
-                咨询记录
               </button>
               <button onClick={() => setView('reviews')} type="button">
                 <Star size={22} strokeWidth={2.4} />
@@ -809,62 +762,6 @@ function CustomerApp() {
                 </article>
               ))}
             </div>
-          </section>
-        </section>
-      )}
-
-      {view === 'support' && (
-        <section className="mobile-page utility-page">
-          <header className="mobile-page-header">
-            <button className="back-button" onClick={() => setView('profile')} type="button">
-              <ChevronLeft size={18} strokeWidth={2.4} />
-              返回我的
-            </button>
-            <h1>咨询记录</h1>
-          </header>
-
-          <section className="profile-card support-actions">
-            <h2>快速咨询</h2>
-            <button
-              onClick={() => createSupportRecord('联系商家', `关于 ${orderToShow.storeName} 的订单咨询`)}
-              type="button"
-            >
-              <Store size={22} strokeWidth={2.4} />
-              联系商家
-            </button>
-            <button
-              onClick={() => createSupportRecord('配送问题', '已记录配送进度或骑手联系问题')}
-              type="button"
-            >
-              <Navigation size={22} strokeWidth={2.4} />
-              配送问题
-            </button>
-            <button
-              onClick={() => createSupportRecord('退款/售后', '已提交订单售后咨询')}
-              type="button"
-            >
-              <MessageSquareText size={22} strokeWidth={2.4} />
-              退款/售后
-            </button>
-          </section>
-
-          <section className="profile-card">
-            <h2>记录</h2>
-            {supportRecords.length === 0 ? (
-              <div className="quiet-empty">暂无咨询记录，可以先用上方入口创建一条。</div>
-            ) : (
-              <div className="support-record-list">
-                {supportRecords.map((record) => (
-                  <article key={record.id}>
-                    <strong>{record.title}</strong>
-                    <p>{record.description}</p>
-                    <span>
-                      {record.status} · {record.createdAt}
-                    </span>
-                  </article>
-                ))}
-              </div>
-            )}
           </section>
         </section>
       )}

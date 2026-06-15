@@ -1097,8 +1097,7 @@
 
 .order-history-list p,
 .order-history-list span,
-.profile-header span,
-.asset-grid span {
+.profile-header span {
   color: var(--muted);
   font-size: 13px;
 }
@@ -1130,26 +1129,10 @@
   color: var(--ink);
 }
 
-.asset-grid,
 .profile-actions {
   display: grid;
   gap: 12px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.asset-grid article {
-  display: grid;
-  gap: 3px;
-  text-align: center;
-}
-
-.asset-grid strong {
-  color: var(--ink);
-  font-size: 24px;
-}
-
-.profile-actions {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .profile-actions button {
@@ -1199,7 +1182,6 @@
 }
 
 .managed-address-list,
-.support-record-list,
 .review-list,
 .settings-list {
   display: grid;
@@ -1207,7 +1189,6 @@
 }
 
 .managed-address-list article,
-.support-record-list article,
 .review-list article {
   background: var(--surface-strong);
   border: 1px solid var(--border);
@@ -1223,20 +1204,17 @@
 }
 
 .managed-address-list article div,
-.support-record-list article,
 .review-list article {
   min-width: 0;
 }
 
 .managed-address-list strong,
-.support-record-list strong,
 .review-list strong {
   color: var(--ink);
 }
 
 .managed-address-list span,
 .managed-address-list small,
-.support-record-list span,
 .review-list span,
 .quiet-empty {
   color: var(--muted);
@@ -1245,7 +1223,7 @@
 }
 
 .managed-address-list p,
-.support-record-list p {
+.review-list p {
   color: var(--text);
   font-size: 14px;
 }
@@ -1257,7 +1235,6 @@
 }
 
 .managed-address-list footer button,
-.support-actions button,
 .settings-list button {
   align-items: center;
   background: #ffffff;
@@ -1275,14 +1252,6 @@
 .managed-address-list footer button:disabled {
   cursor: not-allowed;
   opacity: 0.5;
-}
-
-.support-actions {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.support-actions button {
-  justify-content: center;
 }
 
 .quiet-empty {
